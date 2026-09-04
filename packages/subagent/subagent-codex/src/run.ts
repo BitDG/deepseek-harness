@@ -129,11 +129,15 @@ export function codexStartupFailure(cause: unknown): Error {
 }
 
 /**
- * Fixed package-local app-server command, independent of the host `PATH`.
- * @returns Node, the official wrapper, and the fixed app-server arguments.
+ * Build the app-server command from an explicit native executable or the
+ * package-local wrapper without inspecting the host `PATH`.
+ * @param executablePath - deployment-selected native executable.
+ * @returns the executable and fixed app-server arguments.
  */
-export function codexAppServerArgv(): string[] {
-  return [process.execPath, CODEX_PACKAGE_BIN, 'app-server', '--stdio']
+export function codexAppServerArgv(executablePath?: string): string[] {
+  return executablePath === undefined
+    ? [process.execPath, CODEX_PACKAGE_BIN, 'app-server', '--stdio']
+    : [executablePath, 'app-server', '--stdio']
 }
 
 /** Fully resolved inputs for one Codex app-server run. */
@@ -146,6 +150,8 @@ export interface CodexRunSpec {
   readonly permissionMode: CodexPermissionMode
   /** Explicit deployment/test environment layered after the shared scrub. */
   readonly env: Record<string, string>
+  /** Native Codex executable; omitted to use the package-local wrapper. */
+  readonly executablePath?: string
   /** Subprocess termination grace passed to the shared process-tree owner. */
   readonly disposeGraceMs: number
   /** Shared subprocess service spawn operation. */
@@ -239,7 +245,7 @@ export async function startCodexRun(
   let child: SubprocessHandle
   try {
     child = spec.spawn({
-      argv: codexAppServerArgv(),
+      argv: codexAppServerArgv(spec.executablePath),
       cwd: spec.cwd,
       stdio: { stdin: 'pipe', stdout: 'pipe', stderr: 'pipe' },
       graceMs: spec.disposeGraceMs,

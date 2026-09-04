@@ -1,0 +1,6 @@
+- region "OmniRoute":
+  - heading "OmniRoute" [level=3]
+  - paragraph: 通过一个本地网关，将 OmniRoute 模型接入 DeepSeek Harness。
+  - paragraph: 正在使用已经运行的 OmniRoute 服务。
+  - paragraph: 已接入 2 个模型。
+  - button "打开 OmniRoute 控制台"

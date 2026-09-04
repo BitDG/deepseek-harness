@@ -13,6 +13,9 @@
     - button "Agent presets":
       - img
       - text: Agent presets
+    - button "DSH update":
+      - img
+      - text: DSH update
   - button "Open configuration file"
   - button "Close":
     - img

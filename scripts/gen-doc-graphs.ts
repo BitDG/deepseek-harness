@@ -117,6 +117,14 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'Adapters register provider implementations; the loop and compaction call the provider-neutral stream service.',
   },
   {
+    key: 'omniRoute',
+    pkg: 'llm-omniroute',
+    title: 'Host OmniRoute Remote controller',
+    mode: 'core',
+    consumers: ['web-app'],
+    note: 'Detects or owns the loopback OmniRoute process, discovers its catalog, and persists the OpenAI-compatible provider profile used by the LLM registry.',
+  },
+  {
     key: 'deepseekLlmApiExtensions',
     pkg: 'deepseek-llm-api-extensions',
     title: 'Official DeepSeek request extensions',

@@ -36,10 +36,11 @@ export function isNullPtr(value: NativePtr | null | undefined): value is null | 
   return value === null || value === undefined || (value as bigint) === 0n
 }
 
-/** STARTUPINFOW fields used by inherited or piped stdio launches. */
+/** STARTUPINFOW fields used by hidden inherited or piped stdio launches. */
 export interface StartupInfoInput {
   cb: number
   dwFlags: number
+  wShowWindow: number
   hStdInput: NativePtr
   hStdOutput: NativePtr
   hStdError: NativePtr

@@ -40,6 +40,12 @@ const SEARCH_QUERY_MAX_CODE_UNITS = 500
 /** Session rows visible per Workspace before the local overflow control. */
 const COLLAPSED_SESSION_LIMIT = 5
 
+/** Default Windows-style project launcher, with POSIX joining retained for remote hosts. */
+function defaultStartupScript(cwd: string): string {
+  const trimmed = cwd.replace(/[\\/]+$/, '')
+  return `${trimmed}${cwd.includes('\\') ? '\\' : '/'}start.bat`
+}
+
 /** Fold one Workspace without charging its provisional New Session against the ordinary-row limit. */
 function collapsedSessionRows(sessions: readonly SessionNode[]): {
   rows: readonly SessionNode[]
@@ -233,7 +239,8 @@ function workspaceGroupHalf(e: { clientY: number; currentTarget: HTMLElement }):
 type SessionTreeProps = Pick<
   WorkspaceBrowserProps,
   'useSessions' | 'useSessionPendingInteraction' | 'startSession' | 'open' | 'forkSession'
-  | 'insertWorkspaceBefore' | 'insertSessionBefore' | 't'
+  | 'insertWorkspaceBefore' | 'insertSessionBefore' | 'openWorkspacePath'
+  | 'setCurrentComposerDraft' | 't'
 > & {
   /** Host account home for POSIX hover-path abbreviation. */
   home?: string | undefined
@@ -256,6 +263,12 @@ type SessionTreeProps = Pick<
   onRenameRequest: (workspaceId: WorkspaceId, currentTitle: string) => void
   /** Open the browser-owned delete-confirmation dialog for a real Workspace group. */
   onDeleteRequest: (workspaceId: WorkspaceId, currentTitle: string) => void
+  /** Persisted startup-script overrides by Workspace id. */
+  startupScriptByWorkspace: Readonly<Record<string, string>>
+  /** Open the startup-script editor for one Workspace. */
+  onConfigureStartup: (workspaceId: WorkspaceId, title: string, cwd: string) => void
+  /** Surface a rejected native/composer Workspace action. */
+  onWorkspaceActionError: (reason: unknown) => void
   /** Open the browser-owned session rename dialog. */
   onSessionRename: (sessionId: SessionNode['id'], currentTitle: string) => void
   /** Archive a session (row menu action; the row disappears on the state echo). */
@@ -267,8 +280,9 @@ type SessionTreeProps = Pick<
 /** The scrolling session tree; unmounting drops the sessions subscription and expand-all state. */
 function SessionTree({
   useSessions, useSessionPendingInteraction, startSession, open, forkSession, workspaces, archivedSessionIds,
-  onRenameRequest, onDeleteRequest, onSessionRename, onSessionArchive,
-  insertWorkspaceBefore, insertSessionBefore, orderBy,
+  onRenameRequest, onDeleteRequest, onConfigureStartup, onWorkspaceActionError,
+  onSessionRename, onSessionArchive, startupScriptByWorkspace,
+  openWorkspacePath, setCurrentComposerDraft, insertWorkspaceBefore, insertSessionBefore, orderBy,
   groupExpansion, setGroupExpanded,
   sessionOrderByAccount, sessionUpdatedAtByAccount, syncSessionOrderAccount, setSessionOrder, home, t,
 }: SessionTreeProps) {
@@ -515,6 +529,30 @@ function SessionTree({
                 actions={group.workspaceId === undefined
                   ? undefined
                   : {
+                    openFolder: () => {
+                      if (group.cwd !== undefined) void openWorkspacePath(group.cwd).catch(onWorkspaceActionError)
+                    },
+                    sendToComposer: () => {
+                      try {
+                        setCurrentComposerDraft(t('workspace.composerText', {
+                          name: group.label,
+                          path: group.cwd ?? '',
+                        }))
+                      } catch (reason: unknown) {
+                        onWorkspaceActionError(reason)
+                      }
+                    },
+                    configureStartup: () => {
+                      if (group.workspaceId !== undefined && group.cwd !== undefined) {
+                        onConfigureStartup(group.workspaceId, group.label, group.cwd)
+                      }
+                    },
+                    launch: () => {
+                      if (group.workspaceId === undefined || group.cwd === undefined) return
+                      const script = startupScriptByWorkspace[group.workspaceId as string]
+                        ?? defaultStartupScript(group.cwd)
+                      void openWorkspacePath(script).catch(onWorkspaceActionError)
+                    },
                     rename: () => {
                     /* v8 ignore next -- narrowing guard: the actions object exists only for real-workspace groups. */
                       if (group.workspaceId !== undefined) onRenameRequest(group.workspaceId, group.label)
@@ -813,6 +851,8 @@ export function WorkspaceBrowser({
   forkSession,
   renameWorkspace,
   deleteWorkspace,
+  openWorkspacePath,
+  setCurrentComposerDraft,
   insertWorkspaceBefore,
   archiveSession,
   insertSessionBefore,
@@ -836,6 +876,7 @@ export function WorkspaceBrowser({
   const groupExpansion = useStore(s => s.groupExpansion)
   const sessionOrderByAccount = useStore(s => s.sessionOrderByAccount)
   const sessionUpdatedAtByAccount = useStore(s => s.sessionUpdatedAtByAccount)
+  const startupScriptByWorkspace = useStore(s => s.startupScriptByWorkspace)
   const currentBlankSessionId = useSessions((state) => {
     const current = state.current
     return current !== undefined && state.byId[current]?.blank === true ? current : undefined
@@ -987,6 +1028,30 @@ export function WorkspaceBrowser({
       setRenaming(false)
       setRenameError(reason instanceof Error ? reason.message : String(reason))
     })
+  }
+
+  // Per-Workspace startup script. The explicit path survives reloads in the
+  // browser view store; a fresh Workspace defaults to <cwd>/start.bat.
+  const [startupTarget, setStartupTarget] = useState<{
+    workspaceId: WorkspaceId
+    title: string
+    cwd: string
+  } | null>(null)
+  const [startupDraft, setStartupDraft] = useState('')
+  const startupTrimmed = startupDraft.trim()
+  const openStartupEditor = (workspaceId: WorkspaceId, title: string, cwd: string) => {
+    setStartupTarget({ workspaceId, title, cwd })
+    setStartupDraft(startupScriptByWorkspace[workspaceId as string] ?? defaultStartupScript(cwd))
+  }
+  const closeStartupEditor = () => { setStartupTarget(null) }
+  const saveStartupScript = () => {
+    if (startupTarget === null || startupTrimmed === '') return
+    actions.setStartupScript(startupTarget.workspaceId, startupTrimmed)
+    setStartupTarget(null)
+  }
+  const [workspaceActionError, setWorkspaceActionError] = useState<string | null>(null)
+  const reportWorkspaceActionError = (reason: unknown) => {
+    setWorkspaceActionError(reason instanceof Error ? reason.message : String(reason))
   }
 
   // Session rename dialog (same browser-owned pattern as workspace rename;
@@ -1247,6 +1312,11 @@ export function WorkspaceBrowser({
                 archivedSessionIds={archivedSessionIds}
                 startSession={startSession}
                 open={open}
+                openWorkspacePath={openWorkspacePath}
+                setCurrentComposerDraft={setCurrentComposerDraft}
+                startupScriptByWorkspace={startupScriptByWorkspace}
+                onConfigureStartup={openStartupEditor}
+                onWorkspaceActionError={reportWorkspaceActionError}
                 insertWorkspaceBefore={insertWorkspaceBefore}
                 insertSessionBefore={insertSessionBefore}
                 orderBy={orderBy}
@@ -1264,6 +1334,55 @@ export function WorkspaceBrowser({
               />
             ))}
       </div>
+
+      <Modal
+        open={startupTarget !== null}
+        onClose={closeStartupEditor}
+        closeLabel={t('close')}
+        title={t('startup.title')}
+        footer={(
+          <>
+            <Button variant="outline" onClick={closeStartupEditor}>{t('cancel')}</Button>
+            <Button variant="primary" disabled={startupTrimmed === ''} onClick={saveStartupScript}>
+              {t('startup.save')}
+            </Button>
+          </>
+        )}
+      >
+        <input
+          className={css.renameInput}
+          value={startupDraft}
+          aria-label={t('field.startupScript')}
+          autoFocus
+          onFocus={(e) => { e.target.select() }}
+          onChange={(e) => { setStartupDraft(e.target.value) }}
+          onCompositionStart={() => { composingRef.current = true }}
+          onCompositionEnd={() => { composingRef.current = false }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !composingRef.current) {
+              e.preventDefault()
+              saveStartupScript()
+            }
+          }}
+        />
+        {startupTarget !== null && (
+          <div className={css.startupHint}>
+            {t('startup.defaultHint', { path: defaultStartupScript(startupTarget.cwd) })}
+          </div>
+        )}
+      </Modal>
+
+      <Modal
+        open={workspaceActionError !== null}
+        onClose={() => { setWorkspaceActionError(null) }}
+        closeLabel={t('close')}
+        title={t('action.error.title')}
+        footer={(
+          <Button variant="primary" onClick={() => { setWorkspaceActionError(null) }}>{t('close')}</Button>
+        )}
+      >
+        {workspaceActionError !== null && <div className={css.renameError} role="alert">{workspaceActionError}</div>}
+      </Modal>
 
       <Modal
         open={renameTarget !== null}

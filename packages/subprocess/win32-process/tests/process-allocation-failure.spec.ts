@@ -6,8 +6,9 @@ import {
   spawnPipedProcess,
   waitForProcessExit,
 } from '../src/index.ts'
+import { STARTF_USESHOWWINDOW, STARTF_USESTDHANDLES, SW_HIDE } from '../src/abi.ts'
 import * as ffi from '../src/ffi.ts'
-import { PROCESS_INFORMATION } from '../src/ffi.ts'
+import { PROCESS_INFORMATION, STARTUPINFOW } from '../src/ffi.ts'
 import type { NativePtr, Win32ProcessBindings } from '../src/ffi.ts'
 
 vi.mock('../src/ffi.ts', { spy: true })
@@ -41,12 +42,14 @@ describe('spawnInheritedJobProcess allocation cleanup', () => {
   })
 
   it('frees process info after a successful inherited spawn', () => {
+    let startupInfo: { dwFlags: number; wShowWindow: number } | undefined
     const api = {
       createJobObjectW: vi.fn(() => 50n),
       setInformationJobObject: vi.fn(() => 1),
       getStdHandle: vi.fn((selector: number) => BigInt(100 - selector)),
       setHandleInformation: vi.fn(() => 1),
-      createProcessAsUserW: vi.fn((_token, _app, _line, _pa, _ta, _inherit, _flags, _env, _cwd, _startup, info) => {
+      createProcessAsUserW: vi.fn((_token, _app, _line, _pa, _ta, _inherit, _flags, _env, _cwd, startup, info) => {
+        startupInfo = koffi.decode(startup, STARTUPINFOW) as { dwFlags: number; wShowWindow: number }
         koffi.encode(info, PROCESS_INFORMATION, {
           hProcess: 60n,
           hThread: 61n,
@@ -68,6 +71,10 @@ describe('spawnInheritedJobProcess allocation cleanup', () => {
       cwd: 'C:\\',
       token: 70n as NativePtr,
     })).toEqual({ pid: 1234, process: 60n, job: 50n })
+    expect(startupInfo).toMatchObject({
+      dwFlags: STARTF_USESTDHANDLES | STARTF_USESHOWWINDOW,
+      wShowWindow: SW_HIDE,
+    })
     expect(free).toHaveBeenCalledTimes(2)
   })
 })
@@ -75,6 +82,7 @@ describe('spawnInheritedJobProcess allocation cleanup', () => {
 describe('shared process allocation cleanup', () => {
   it('frees pipe slots and process structs after a successful piped spawn', () => {
     let nextHandle = 10n
+    let startupInfo: { dwFlags: number; wShowWindow: number } | undefined
     const api = {
       createPipe: vi.fn((readSlot: NativePtr, writeSlot: NativePtr) => {
         koffi.encode(readSlot, PVOID, nextHandle++)
@@ -82,7 +90,8 @@ describe('shared process allocation cleanup', () => {
         return 1
       }),
       setHandleInformation: vi.fn(() => 1),
-      createProcessAsUserW: vi.fn((_token, _app, _line, _pa, _ta, _inherit, _flags, _env, _cwd, _startup, info) => {
+      createProcessAsUserW: vi.fn((_token, _app, _line, _pa, _ta, _inherit, _flags, _env, _cwd, startup, info) => {
+        startupInfo = koffi.decode(startup, STARTUPINFOW) as { dwFlags: number; wShowWindow: number }
         koffi.encode(info, PROCESS_INFORMATION, {
           hProcess: 60n,
           hThread: 61n,
@@ -102,6 +111,10 @@ describe('shared process allocation cleanup', () => {
       cwd: 'C:\\',
       token: 70n as NativePtr,
     })).toMatchObject({ pid: 1234, process: 60n })
+    expect(startupInfo).toMatchObject({
+      dwFlags: STARTF_USESTDHANDLES | STARTF_USESHOWWINDOW,
+      wShowWindow: SW_HIDE,
+    })
     expect(free).toHaveBeenCalledTimes(8)
   })
 

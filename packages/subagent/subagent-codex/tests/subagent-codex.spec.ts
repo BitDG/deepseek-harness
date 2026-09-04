@@ -395,6 +395,11 @@ describe('task admission and package contracts', () => {
       'app-server',
       '--stdio',
     ])
+    expect(codexAppServerArgv(process.execPath)).toEqual([
+      process.execPath,
+      'app-server',
+      '--stdio',
+    ])
 
     const lockfile = readFileSync(resolve(root, '../../../pnpm-lock.yaml'), 'utf8')
     for (const packageName of CODEX_PLATFORM_PACKAGES) {
@@ -405,13 +410,16 @@ describe('task admission and package contracts', () => {
       )
     }
 
-    const parsed = yaml.load(readFileSync(resolve(root, manifest.dsh!.bundle!.patch!), 'utf8'))
+    const patch = readFileSync(resolve(root, manifest.dsh!.bundle!.patch!), 'utf8')
+    expect(patch).toContain('executablePath: !!js process.env.DSH_CODEX_EXECUTABLE_PATH')
+    const parsed = yaml.load(patch.replace('!!js ', ''))
     const rows = Array.isArray(parsed)
-      ? (parsed as Array<{ insert?: Array<{ id?: string; name?: string }> }>).flatMap(entry => entry.insert ?? [])
+      ? (parsed as Array<{ insert?: Array<{ id?: string; name?: string; config?: unknown }> }>).flatMap(entry => entry.insert ?? [])
       : []
     expect(rows).toEqual([{
       id: 'subagent-codex',
       name: '@deepseek-ai/dsh-subagent-codex',
+      config: { executablePath: 'process.env.DSH_CODEX_EXECUTABLE_PATH' },
     }])
     expect(JSON.stringify(rows)).not.toContain('tool-subagent')
   })
@@ -455,6 +463,8 @@ describe('task admission and package contracts', () => {
     }
     await expect(ctx.plugin(codex, { disposeGraceMs: MAX_TIMER_DELAY_MS + 1 }))
       .rejects.toThrow(`disposeGraceMs must be no greater than ${MAX_TIMER_DELAY_MS}`)
+    await expect(ctx.plugin(codex, { executablePath: 'relative/codex.exe' }))
+      .rejects.toThrow('executablePath must be absolute')
     await ctx.fiber.dispose()
   })
 

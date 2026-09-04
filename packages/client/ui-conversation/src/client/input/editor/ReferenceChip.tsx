@@ -16,20 +16,37 @@ export interface ReferenceChipProps {
   readonly appearance?: ReferenceIconKind | undefined
   /** Owner-resolution failure styling bit. */
   readonly invalid: boolean
+  /** Remove this file reference; absent keeps non-file references display-only. */
+  readonly onRemove?: (() => void) | undefined
 }
 
 /**
  * Render one inline reference chip.
- * @param props - label, optional domain glyph, and the invalid bit.
- * @returns the chip body (icon + truncating label).
+ * @param props - label, optional domain glyph, invalid bit, and optional removal action.
+ * @returns the chip body (icon + truncating label + file removal action).
  */
-export function ReferenceChip({ label, appearance, invalid }: ReferenceChipProps): ReactNode {
+export function ReferenceChip({ label, appearance, invalid, onRemove }: ReferenceChipProps): ReactNode {
   return (
     <span className={clsx(css.chip, invalid && css.invalid)} title={label}>
       {appearance === undefined
         ? <span className={css.marker} aria-hidden>@</span>
         : <ReferenceIcon kind={appearance} size={14} className={css.icon} />}
       <span className={css.label}>{label}</span>
+      {onRemove === undefined ? null : (
+        <button
+          type="button"
+          className={css.remove}
+          aria-label={label}
+          onMouseDown={(event) => { event.preventDefault() }}
+          onClick={(event) => {
+            event.preventDefault()
+            event.stopPropagation()
+            onRemove()
+          }}
+        >
+          <span aria-hidden>×</span>
+        </button>
+      )}
     </span>
   )
 }

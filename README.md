@@ -40,6 +40,8 @@ pnpm dsh web
 
 `pnpm run build` prepares the repository artifacts. `pnpm dsh web` uses those built artifacts without rebuilding.
 
+On Windows, double-click `start.bat` in a repository checkout to rebuild when the local source or recorded artifacts changed, stop the Web process previously started by that checkout, and open the Web UI. A rebuild completes before the existing process stops. The launcher probes installed Codex and Claude Code executables and passes their absolute paths to matching optional providers. When that provider's exact JavaScript dependency is already installed, the locked source install preserves its dependency closure and excludes the provider workspace, so it does not fetch the redundant Windows platform payload; a missing executable or dependency leaves the ordinary locked install enabled. The launcher reports success only after the complete profile announces readiness; a startup failure keeps the window open and points to its local error log. The launcher never fetches or changes the checkout. Other arguments pass to `dsh web`; for example, `start.bat --no-open --port 4317` restarts the server without opening a browser. The launcher uses Corepack to run the repository's pinned pnpm version.
+
 ## Community and support
 
 - Submit feedback or bug reports through [GitHub Discussions](https://github.com/deepseek-ai/deepseek-harness/discussions).

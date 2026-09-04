@@ -9,7 +9,7 @@ kind: "package-bundle"
 
 ## 概述
 
-`dsh-subagent-claude-code` 注册由 Profile 命名、默认名称为 `claude-code` 的 Claude Code subagent 提供方，它在发起委派的会话工作区中通过官方 Agent SDK 运行真实的 Claude Code CLI 子 agent（智能体）。每次接受的运行提交一个自包含文本任务，并通过共享的 subagent 结果约定返回严格的最终答案——或独立的安全失败诊断。该提供方作为可选的 Profile Bundle 发布：安装会带入锁定的 Agent SDK 与一个兼容的平台 CLI 载荷，而注册的提供方在绑定工具调用前保持休眠。原生 Claude 设置与身份验证继续是权威来源，Profile 选择的 `permissionMode` 决定这个无人值守 query 如何处理权限检查。当子 agent 应该是与父 harness 完全隔离的真实 Claude Code 产品会话时，选择它。
+`dsh-subagent-claude-code` 注册由 Profile 命名、默认名称为 `claude-code` 的 Claude Code subagent 提供方，它在发起委派的会话工作区中通过官方 Agent SDK 运行真实的 Claude Code CLI 子 agent（智能体）。每次接受的运行使用显式配置的原生可执行文件或 SDK 平台载荷，提交一个自包含文本任务，并通过共享的 subagent 结果约定返回严格的最终答案——或独立的安全失败诊断。该提供方作为可选的 Profile Bundle 发布：安装会带入锁定的 Agent SDK 与一个兼容的平台 CLI 载荷，而注册的提供方在绑定工具调用前保持休眠。原生 Claude 设置与身份验证继续是权威来源，Profile 选择的 `permissionMode` 决定这个无人值守 query 如何处理权限检查。当子 agent 应该是与父 harness 完全隔离的真实 Claude Code 产品会话时，选择它。
 
 ## 目录
 
@@ -46,6 +46,7 @@ dsh --profile <name>
 | `providerName` | `claude-code` | `ctx.subagents` 上的非空注册名称；每个已挂载实例都需要唯一值 |
 | `model` | Claude 原生设置 | 为本提供方实例的每次运行固定的可选非空模型名称；省略时不发送 SDK 覆盖 |
 | `env` | `{}` | 叠加在已清理凭据的父环境之上的显式 SDK/CLI 环境 |
+| `executablePath` | 固定的 SDK 平台载荷 | 可选的 Claude Code 可执行文件绝对路径；提供方在加载时验证它，且绝不从 `PATH` 发现路径 |
 | `permissionMode` | `dontAsk` | 为本提供方实例的每次运行固定的原生非交互权限策略 |
 | `disposeGraceMs` | `3000` | 共享进程树责任方各终止层级之间的宽限 |
 
@@ -57,7 +58,7 @@ dsh --profile <name>
 | `plan` | 使用原生规划模式，拒绝执行审批，并把完整计划作为最终答案返回 |
 | `bypassPermissions` | 显式设置 SDK 的危险确认并跳过权限检查 |
 
-生成的[配置目录](../../../docs/config-catalog.zh.md#deepseek-aidsh-subagent-claude-code)是每个受支持字段及其 JSDoc 的穷尽式真源。已配置的 `model` 会原样传给该提供方实例的每次 query；省略时保留原生模型选择。具有凭证特征的环境变量会在显式 `env` 覆盖生效前被移除，因此供子进程使用的 API 密钥必须在该配置中显式提供。提供方省略 SDK 的 `settingSources` 选项，因此 Claude Code 会相对于父会话 cwd 读取宿主机常规的用户、项目与本地设置。它不会复制或过滤这些文件、创建或修改登录状态、检查 `PATH`，也不会回退到宿主 `claude` 可执行文件。
+生成的[配置目录](../../../docs/config-catalog.zh.md#deepseek-aidsh-subagent-claude-code)是每个受支持字段及其 JSDoc 的穷尽式真源。已配置的 `model` 会原样传给该提供方实例的每次 query；省略时保留原生模型选择。已配置的 `executablePath` 会成为 SDK 的 `pathToClaudeCodeExecutable`；省略时使用固定的 SDK 平台载荷。具有凭证特征的环境变量会在显式 `env` 覆盖生效前被移除，因此供子进程使用的 API 密钥必须在该配置中显式提供。提供方省略 SDK 的 `settingSources` 选项，因此 Claude Code 会相对于父会话 cwd 读取宿主机常规的用户、项目与本地设置。它不会复制或过滤这些文件、创建或修改登录状态、检查 `PATH`，也不会执行隐式的宿主 CLI 回退。
 
 ### 暴露工具
 
@@ -85,7 +86,7 @@ dsh --profile <name>
 
 ### 失败与恢复
 
-省略 optional dependencies、当前平台不受支持或所选载荷缺失的安装会让提供方保持休眠，并在第一次委派时于 SDK 启动边界以安全的 `query-start` / `unknown` 失败事实失败；不存在宿主 CLI 回退。原始产品错误只保留在内部 cause 链与提供方 Host 日志中。被取消的运行以 `aborted` 结算。
+未配置 `executablePath` 时，省略 optional dependencies、当前平台不受支持或所选载荷缺失的安装会让提供方保持休眠，并在第一次委派时于 SDK 启动边界以安全的 `query-start` / `unknown` 失败事实失败。无效的显式路径会在插件加载时失败。提供方绝不会回退到 `PATH` 查找。原始产品错误只保留在内部 cause 链与提供方 Host 日志中。被取消的运行以 `aborted` 结算。
 
 -----
 
@@ -140,7 +141,7 @@ dsh --profile <name>
 
 #### 模型看到什么
 
-Claude Code 子级会在一个全新的 SDK query 中接收独立文本任务。它的工作区是父会话 cwd；所选提供方实例会固定已配置的模型、环境与非交互权限模式，而省略的模型及其余产品设置来自 Claude 原生配置。可执行版本来自 Bundle 锁定的 SDK 平台载荷。
+Claude Code 子级会在一个全新的 SDK query 中接收独立文本任务。它的工作区是父会话 cwd；所选提供方实例会固定已配置的模型、环境、非交互权限模式与可执行文件路径，而省略的模型及其余产品设置来自 Claude 原生配置。可执行版本来自已配置的原生二进制或 Bundle 锁定的 SDK 平台载荷。
 
 #### Token 影响
 
@@ -175,7 +176,7 @@ Claude Code 子级会在一个全新的 SDK query 中接收独立文本任务。
 - **静态选择实例**——Profile 配置项固定提供方名称、可选模型与工具绑定；调用无法动态选择或修改提供方与模型，而且每个公开工具都需要唯一的 `toolName`。
 - **宿主设置有意保持权威**——省略 `model` 时由项目与用户设置选择模型；原生设置始终保留其余工具和行为，本提供方不提供经过筛选或与宿主环境隔离的生产模式。
 - **身份验证与账户状态仍由原生机制管理**——Bundle 会提供 CLI，但不会创建账户、登录或改写 Claude 设置；配置与身份验证失败会公开其生命周期阶段与安全的 `unknown` 回退，而不会增加单独的公开分类。
-- **委派时必须存在 SDK 平台载荷**——省略 optional dependencies 的安装、不受支持的平台以及缺失或损坏的载荷都会在第一次 query 时失败；不会回退到宿主 CLI。
+- **委派时必须有一个有效的可执行文件来源**——已配置的原生绝对路径会绕过 SDK 载荷；否则，省略 optional dependencies 的安装、不受支持的平台以及缺失或损坏的载荷都会在第一次 query 时失败。提供方绝不会搜索 `PATH`。
 - **没有人工交互路径**——`AskUserQuestion` 被禁用，权限提示会被拒绝，MCP elicitation 会被拒绝，阻塞对话会快速失败而不会挂起。
 - **assistant 载荷仅包含最终文本**——失败运行可以额外公开独立的安全诊断；推理、中间消息、工具通信、用量信息、stderr 和工作区差异仍只保留在产品内部，通用 Job id、通知与状态来自共享作业运行时。
 - **没有可选的共享能力**——对于本提供方，共享服务会拒绝 `agentOptions`、输出 schema、子任务角色设定、工具筛选和 harness 深度强制约束。

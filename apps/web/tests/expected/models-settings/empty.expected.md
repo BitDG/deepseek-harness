@@ -67,3 +67,8 @@
   - group: 自定义设置
   - button "取消"
   - button "保存"
+  - region "OmniRoute":
+    - heading "OmniRoute" [level=3]
+    - paragraph: 通过一个本地网关，将 OmniRoute 模型接入 DeepSeek Harness。
+    - paragraph: 本地服务尚未启动。
+    - button "启动并接入"

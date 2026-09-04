@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-01-omniroute-managed-model-onboarding.md
+2026-09-01-omniroute-managed-model-onboarding.md: e282450a4e6c5ef93b2d698cad6370581e7921cb
+2026-09-01-omniroute-managed-model-onboarding.zh.md: c64fd3e19c0469c7fc7ec4fb06d8801c36d94c91

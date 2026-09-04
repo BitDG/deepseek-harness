@@ -1,0 +1,29 @@
+- heading "DSH 更新" [level=2]
+- paragraph: 对比 GitHub Release，先下载准确版本，再在安全条件满足时安装并重启。
+- button "重新检查":
+  - img
+  - text: 重新检查
+- text: 当前版本
+- strong: v0.1.2-alpha.3
+- code: dd6322d
+- text: 可用版本
+- strong: v0.1.2-alpha.5
+- emphasis: 待下载
+- text: 源码运行 工作区有改动 分支 master
+- button "下载版本":
+  - img
+  - text: 下载版本
+- button "安装并重启" [disabled]
+- paragraph: 安装要求干净工作区；请先提交或保存全部改动。下载仍然可用。
+- heading "版本更新内容" [level=3]
+- link "查看 GitHub 完整对比":
+  - /url: https://github.com/deepseek-ai/deepseek-harness/compare/dsh-v0.1.2-alpha.3...dsh-v0.1.2-alpha.5
+- group:
+  - strong: v0.1.2-alpha.4
+  - text: DeepSeek Harness v0.1.2-alpha.4
+  - time: 发布于 2026-09-02
+- group:
+  - strong: v0.1.2-alpha.5
+  - text: DeepSeek Harness v0.1.2-alpha.5
+  - time: 发布于 2026-09-02
+  - paragraph: 修复升级后的启动与会话标题。

@@ -149,6 +149,72 @@ describe('Session creation failures', () => {
     await ctx.fiber.dispose()
   })
 
+  it('pins requested permission and model defaults on a generated Session', async () => {
+    const ctx = await baseContext()
+    ctx.provide('workspaceRegistry', { get: () => undefined, list: () => [] } as never)
+    const resolvePermission = vi.fn(() => ({ sandbox: 'workspace-write', approval: 'ask' }))
+    const setPermission = vi.fn()
+    ctx.provide('permissionPresets', {
+      resolve: resolvePermission,
+      set: setPermission,
+    } as never)
+    const resolveCallConfig = vi.fn(() => Promise.resolve({
+      provider: 'fixture',
+      model: 'reasoner',
+      reasoningEffort: 'high',
+    }))
+    ctx.provide('llm', { resolveCallConfig } as never)
+    const selectForNextRequest = vi.fn()
+    const ensureSession = vi.fn((sessionId: SessionId, cwd: string) => {
+      const session = ctx.sessions.create(sessionId, { meta: { cwd } })
+      return Promise.resolve({ id: sessionId, session } as Agent)
+    })
+    const controller = new SessionCommandController(
+      ctx,
+      controllerAgents({ ensureSession, selectForNextRequest }),
+      '/default-workspace',
+    )
+
+    const created = await controller.create({
+      permissionPreset: 'workspace-write',
+      modelSelection: { provider: 'fixture', model: 'reasoner', reasoningEffort: 'high' },
+    })
+
+    const agent = await ensureSession.mock.results[0]?.value
+    expect(created.sessionId).toMatch(/^session-/)
+    expect(resolvePermission).toHaveBeenCalledWith('workspace-write')
+    expect(setPermission).toHaveBeenCalledWith(agent.session, 'workspace-write')
+    expect(resolveCallConfig).toHaveBeenCalledWith({
+      provider: 'fixture', model: 'reasoner', reasoningEffort: 'high',
+    })
+    expect(selectForNextRequest).toHaveBeenCalledWith(agent, {
+      provider: 'fixture', model: 'reasoner', reasoningEffort: 'high',
+    })
+    await ctx.fiber.dispose()
+  })
+
+  it('rejects generated-Session defaults before creating an invalid Session', async () => {
+    const ctx = await baseContext()
+    ctx.provide('workspaceRegistry', { get: () => undefined, list: () => [] } as never)
+    ctx.provide('permissionPresets', {
+      resolve: () => { throw new Error('unknown preset') },
+    } as never)
+    const ensureSession = vi.fn()
+    const controller = new SessionCommandController(
+      ctx,
+      controllerAgents({ ensureSession }),
+      '/default',
+    )
+
+    await expectFailure(controller.create({ permissionPreset: 'missing' }), 'session/permission-preset-unavailable')
+    await expectFailure(controller.create({
+      sessionId: SessionId('adopted'),
+      modelSelection: { provider: 'fixture', model: 'reasoner' },
+    }), 'gateway/bad-request')
+    expect(ensureSession).not.toHaveBeenCalled()
+    await ctx.fiber.dispose()
+  })
+
 })
 
 function completedSession(

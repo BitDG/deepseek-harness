@@ -68,7 +68,7 @@ This section explains the design decisions behind the provider and points at the
 
 ### Design concept
 
-The provider treats the process tree as the unit of lifetime. POSIX children spawn detached (their own process group) so the whole tree is signalled by negative group id with a direct-child fallback; Windows terminates by root pid through `taskkill /T`. Signalling, escalation, and teardown guard on tree liveness rather than direct-child settlement, so a TERM-trapping helper cannot outlive the handle unnoticed.
+The provider treats the process tree as the unit of lifetime. POSIX children spawn detached (their own process group) so the whole tree is signalled by negative group id with a direct-child fallback; Windows keeps the child attached for process ownership, requests a hidden console window, and terminates by root pid through `taskkill /T`. Signalling, escalation, and teardown guard on tree liveness rather than direct-child settlement, so a TERM-trapping helper cannot outlive the handle unnoticed.
 
 ### Source map
 

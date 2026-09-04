@@ -809,6 +809,48 @@ export interface Config {
 
 Source: [`packages/host/frontend-static/src/index.ts:30`](../packages/host/frontend-static/src/index.ts)
 
+<a id="deepseek-aidsh-host-update"></a>
+
+## `@deepseek-ai/dsh-host-update`
+
+Requires: `appExit` · `cmdlineArgs`
+
+```ts config-catalog
+/** GitHub, Git, and update-worker policy. */
+export interface Config {
+  /** GitHub REST API origin used for Release discovery. */
+  readonly apiBase?: string
+  /** GitHub organization that owns the release repository. */
+  readonly owner?: string
+  /** GitHub repository whose `dsh-v*` Releases are eligible. */
+  readonly repository?: string
+  /** Git remote used to fetch an exact eligible tag. */
+  readonly remote?: string
+  /** Whether Release discovery may offer prerelease versions. */
+  readonly includePrereleases?: boolean
+  /** Maximum duration of one GitHub request in milliseconds. */
+  readonly requestTimeoutMs?: number
+  /** Duration of the validated in-process Release cache in milliseconds. */
+  readonly cacheTtlMs?: number
+  /** Maximum accepted bytes in one GitHub Releases response page. */
+  readonly maxResponseBytes?: number
+  /** Maximum number of GitHub Release pages read by one check. */
+  readonly maxPages?: number
+  /** Maximum wait for the detached worker's IPC readiness acknowledgement. */
+  readonly workerReadyTimeoutMs?: number
+  /** Maximum wait for the current DSH process to exit before mutation. */
+  readonly parentExitTimeoutMs?: number
+  /** Interval between parent-process exit probes in milliseconds. */
+  readonly workerPollIntervalMs?: number
+  /** Maximum duration of each install, build, or Git worker command. */
+  readonly commandTimeoutMs?: number
+  /** Delay after an install response before requesting graceful Host exit. */
+  readonly exitDelayMs?: number
+}
+```
+
+Source: [`packages/host/update/src/index.ts:38`](../packages/host/update/src/index.ts)
+
 <a id="deepseek-aidsh-host-webserver"></a>
 
 ## `@deepseek-ai/dsh-host-webserver`
@@ -946,6 +988,34 @@ export interface DeepSeekCatalogModel {
 Depends on: [`ModelModality`](../packages/llm/llm/src/index.ts) · [`RetryPolicyConfig`](../packages/llm/llm/src/index.ts)
 
 Source: [`packages/llm/llm-deepseek/src/index.ts:125`](../packages/llm/llm-deepseek/src/index.ts)
+
+<a id="deepseek-aidsh-llm-omniroute"></a>
+
+## `@deepseek-ai/dsh-llm-omniroute`
+
+Requires: `typert` · `subprocess` · `llm` · `settings` · `credentials`
+
+```ts config-catalog
+/** Deployment-varying OmniRoute executable, endpoint, and lifecycle bounds. */
+export interface Config {
+  /** Bare PATH command or absolute OmniRoute executable. */
+  executable?: string
+  /** Local OmniRoute dashboard origin; startup accepts loopback HTTP URLs only. */
+  dashboardURL?: string
+  /** Credential reference used for model discovery and requests. */
+  apiKeyEnv?: string
+  /** Maximum time to wait for a newly spawned service to become healthy. */
+  startTimeoutMs?: number
+  /** Per-request health probe timeout. */
+  healthTimeoutMs?: number
+  /** Delay between startup health probes. */
+  healthPollMs?: number
+  /** TERM-to-KILL grace for the plugin-owned process tree. */
+  disposeGraceMs?: number
+}
+```
+
+Source: [`packages/llm/llm-omniroute/src/index.ts:33`](../packages/llm/llm-omniroute/src/index.ts)
 
 <a id="deepseek-aidsh-llm-pi-ai"></a>
 
@@ -2258,7 +2328,7 @@ Source: [`packages/subagent/subagent-acp/src/index.ts:27`](../packages/subagent/
 Requires: `subagents` · `subprocess`
 
 ```ts config-catalog
-/** Deployment-owned model, permission, environment, and process-release settings. */
+/** Deployment-owned model, executable, permission, environment, and process-release settings. */
 export interface Config {
   /** Provider name on `ctx.subagents` (default `claude-code`). */
   providerName?: string
@@ -2269,6 +2339,8 @@ export interface Config {
    * credential-scrubbed parent environment.
    */
   env?: Record<string, string>
+  /** Absolute Claude Code executable path; omitted to use the Agent SDK payload. */
+  executablePath?: string
   /**
    * Native non-interactive mode fixed for this Provider instance. Defaults to
    * `dontAsk`; `acceptEdits` accepts edits, `auto` uses the native classifier,
@@ -2284,7 +2356,7 @@ export interface Config {
 export type ClaudeCodePermissionMode = typeof CLAUDE_CODE_PERMISSION_MODES[number]
 ```
 
-Source: [`packages/subagent/subagent-claude-code/src/index.ts:38`](../packages/subagent/subagent-claude-code/src/index.ts)
+Source: [`packages/subagent/subagent-claude-code/src/index.ts:40`](../packages/subagent/subagent-claude-code/src/index.ts)
 
 <a id="deepseek-aidsh-subagent-codex"></a>
 
@@ -2293,7 +2365,7 @@ Source: [`packages/subagent/subagent-claude-code/src/index.ts:38`](../packages/s
 Requires: `subagents` · `subprocess`
 
 ```ts config-catalog
-/** Deployment-owned model, permission, environment, and process-release settings. */
+/** Deployment-owned model, executable, permission, environment, and process-release settings. */
 export interface Config {
   /** Provider name on `ctx.subagents` (default `codex`). */
   providerName?: string
@@ -2304,6 +2376,8 @@ export interface Config {
    * credential-scrubbed parent environment.
    */
   env?: Record<string, string>
+  /** Absolute Codex executable path; omitted to use the pinned package wrapper. */
+  executablePath?: string
   /** Native non-interactive permission mode fixed for this Provider instance. */
   permissionMode?: CodexPermissionMode
   /** Grace in milliseconds for app-server process-tree termination. */
@@ -2317,7 +2391,7 @@ export type CodexPermissionMode =
   | 'dangerously-bypass-approvals-and-sandbox'
 ```
 
-Source: [`packages/subagent/subagent-codex/src/index.ts:36`](../packages/subagent/subagent-codex/src/index.ts)
+Source: [`packages/subagent/subagent-codex/src/index.ts:39`](../packages/subagent/subagent-codex/src/index.ts)
 
 <a id="deepseek-aidsh-subagent-dsh-sdk"></a>
 
@@ -3324,6 +3398,7 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 - `@deepseek-ai/dsh-client-ui-settings-models` ([`packages/client/ui-settings-models/src/index.ts`](../packages/client/ui-settings-models/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-settings-plugin-inventory` ([`packages/client/ui-settings-plugin-inventory/src/index.ts`](../packages/client/ui-settings-plugin-inventory/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-settings-plugins` ([`packages/client/ui-settings-plugins/src/index.ts`](../packages/client/ui-settings-plugins/src/index.ts))
+- `@deepseek-ai/dsh-client-ui-settings-update` ([`packages/client/ui-settings-update/src/index.ts`](../packages/client/ui-settings-update/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-sidebar` ([`packages/client/ui-sidebar/src/index.ts`](../packages/client/ui-sidebar/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-skill` ([`packages/client/ui-skill/src/index.ts`](../packages/client/ui-skill/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-subagent` ([`packages/client/ui-subagent/src/index.ts`](../packages/client/ui-subagent/src/index.ts))

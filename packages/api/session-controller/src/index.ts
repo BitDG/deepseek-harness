@@ -223,7 +223,7 @@ export class SessionController extends TypertRemoteService {
 
   /**
    * Create or idempotently adopt one ordinary Session.
-   * @param request - requested identity, location, and Agent preset.
+   * @param request - requested identity, location, Agent preset, and generated-Session defaults.
    * @returns the Session identity and resolved preset when configured.
    */
   @Remote('create')

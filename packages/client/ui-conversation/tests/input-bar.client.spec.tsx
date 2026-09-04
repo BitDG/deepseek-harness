@@ -1111,6 +1111,21 @@ describe('decorations', () => {
     expect(shell.snapshot.occurrences[0]).toMatchObject({ offset: 3, length: 3 })
   })
 
+  it('removes a file reference from the draft through its chip action', () => {
+    const { view, shell } = bench()
+    act(() => {
+      shell.setDraft('@rss-abcdefghij')
+      shell.insertReference({
+        source: 'rss-article', ref: 'abcdefghijklmnopqrstuvwxyz', label: 'article.md',
+        appearance: 'file', clipboardText: '@[article.md](dship-rss:abcdefghijklmnopqrstuvwxyz)',
+      }, { start: 0, end: 15, draftRev: shell.snapshot.draftRev })
+    })
+    fireEvent.click(view.getByRole('button', { name: 'article.md' }))
+    expect(view.container.querySelector('[data-composer-chip="rss-article"]')).toBeNull()
+    expect(shell.snapshot.draft).toBe('')
+    expect(shell.snapshot.occurrences).toEqual([])
+  })
+
   it('keeps the chip decorator mounted when the session becomes disabled', () => {
     const { view, shell, session, textarea } = bench()
     act(() => {

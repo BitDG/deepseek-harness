@@ -92,6 +92,20 @@ describe('web e2e: settings modal and General preferences', () => {
     // Golden of the freshly opened dialog (default zh, General active).
     const snapshot = await captureStableAria(page, '[role="dialog"]', scaffold.workspaceCwd)
     await compareOrRefreshGolden(DIALOG_EXPECTED, snapshot, MODE)
+    // A short viewport constrains the list without moving the settings title;
+    // focusing its last row must scroll the navigation instead of clipping it.
+    const viewport = page.viewportSize()!
+    await page.setViewportSize({ width: viewport.width, height: 240 })
+    try {
+      const navList = dialog.getByRole('navigation').locator(':scope > div').nth(1)
+      await expect.poll(() => navList.evaluate(element => element.scrollHeight > element.clientHeight), {
+        timeout: 5_000,
+      }).toBe(true)
+      await navList.getByRole('button').last().focus()
+      await expect.poll(() => navList.evaluate(element => element.scrollTop), { timeout: 5_000 }).toBeGreaterThan(0)
+    } finally {
+      await page.setViewportSize(viewport)
+    }
     // Section switch: aria-current moves (the Models page itself has its own scenario file).
     await dialog.getByRole('button', { name: '模型' }).click()
     await expect.poll(() => dialog.getByRole('button', { name: '模型' }).getAttribute('aria-current'), { timeout: 5_000 }).toBe('true')

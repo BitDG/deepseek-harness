@@ -38,6 +38,7 @@ import {
 
 const observedSdkMessages = vi.hoisted((): SDKMessage[] => [])
 const sdkTestOverrides = vi.hoisted((): { maxTurns?: number } => ({}))
+const systemClaudeCodePath = process.env.DSH_CLAUDE_CODE_EXECUTABLE_PATH
 
 vi.mock('@anthropic-ai/claude-agent-sdk', async (importOriginal) => {
   const actual = await importOriginal<
@@ -211,6 +212,7 @@ async function realHarness(
   behavior: MessagesBehavior,
   permissionMode?: ClaudeCodePermissionMode,
   nativeAllow: readonly string[] = [],
+  executablePath?: string,
 ): Promise<{
   readonly harness: RealHarness
   readonly fixture: MessagesFixture
@@ -220,6 +222,7 @@ async function realHarness(
   await ctx.plugin(claudeCode, {
     env: instance.env,
     ...permissionMode === undefined ? {} : { permissionMode },
+    ...executablePath === undefined ? {} : { executablePath },
     disposeGraceMs: 3_000,
   })
   const parent = {
@@ -238,6 +241,33 @@ async function realHarness(
     fixture: instance.fixture,
   }
 }
+
+describe.skipIf(systemClaudeCodePath === undefined)(
+  'configured system Claude Code executable',
+  { timeout: 60_000 },
+  () => {
+    it('runs one real SDK task through the configured native binary', async () => {
+      const sentinel = 'SYSTEM_CLAUDE_CODE_EXECUTABLE_SENTINEL'
+      const { harness, fixture } = await realHarness(
+        { kind: 'complete', text: sentinel },
+        undefined,
+        [],
+        systemClaudeCodePath,
+      )
+      const run = await startRequest(harness, 'Return the fixture sentinel exactly.')
+      await expect(run.result).resolves.toEqual({
+        output: [{ type: 'text', text: sentinel }],
+        stopReason: 'completed',
+      })
+      await run.dispose()
+      const spawned = harness.spawnSpecs[0]?.argv[0]
+      expect(spawned).toBeDefined()
+      expect(realpathSync(spawned!)).toBe(realpathSync(systemClaudeCodePath!))
+      expect(fixture.requests).toHaveLength(1)
+      await expectQuiescent(harness.handles)
+    })
+  },
+)
 
 async function expectQuiescent(
   handles: readonly SubprocessHandle[],

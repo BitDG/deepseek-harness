@@ -10,6 +10,7 @@ import {
   ReasoningEffortId, createUserMessage, freezeMessage,
 } from '@deepseek-ai/dsh-llm'
 import type { MessageSource } from '@deepseek-ai/dsh-llm'
+import type {} from '@deepseek-ai/dsh-permission-presets'
 import type { SessionEvent, SessionHeader, SessionId, UserMessage } from '@deepseek-ai/dsh-session'
 import { SessionQueryError, type SessionObservation } from '@deepseek-ai/dsh-session-query'
 import { SessionTitleInvalidError } from '@deepseek-ai/dsh-session-title'
@@ -73,6 +74,38 @@ export class SessionCommandController {
     if (request.workspaceId !== undefined && request.cwd !== undefined) {
       throw new RemoteError('gateway/bad-request', 'session.create accepts workspaceId or cwd, not both', {})
     }
+    if (request.sessionId !== undefined
+      && (request.permissionPreset !== undefined || request.modelSelection !== undefined)) {
+      throw new RemoteError(
+        'gateway/bad-request',
+        'session.create accepts permissionPreset and modelSelection only for a generated Session id',
+        {},
+      )
+    }
+    const permissionPresets = request.permissionPreset === undefined
+      ? undefined
+      : this.ctx.get('permissionPresets')
+    if (request.permissionPreset !== undefined) {
+      if (permissionPresets === undefined) {
+        throw new RemoteError(
+          'session/permission-preset-unavailable',
+          'permission presets are unavailable in this deployment',
+          { permissionPreset: request.permissionPreset },
+        )
+      }
+      try {
+        permissionPresets.resolve(request.permissionPreset)
+      } catch (error) {
+        throw new RemoteError(
+          'session/permission-preset-unavailable',
+          error instanceof Error ? error.message : String(error),
+          { permissionPreset: request.permissionPreset },
+        )
+      }
+    }
+    const modelSelection = request.modelSelection === undefined
+      ? undefined
+      : await this.resolveModelSelection(request.modelSelection)
     const sessionId = request.sessionId ?? brandString<SessionId>(`session-${randomUUID()}`)
     let workspace: Workspace | undefined
     if (request.workspaceId !== undefined) {
@@ -94,6 +127,12 @@ export class SessionCommandController {
       )
     } catch (error) {
       this.rejectCreation(sessionId, error)
+    }
+    if (request.permissionPreset !== undefined) {
+      permissionPresets?.set(adopted.session, request.permissionPreset)
+    }
+    if (modelSelection !== undefined) {
+      this.agents.selectForNextRequest(adopted, modelSelection)
     }
     if (workspace !== undefined) {
       try {
@@ -119,20 +158,7 @@ export class SessionCommandController {
     const agent = await this.resolveAgent(request.sessionId)
     return this.agents.serializeImageAdmission(agent, async () => {
       try {
-        const resolved = await this.ctx.llm.resolveCallConfig({
-          provider: request.provider,
-          model: request.model,
-          ...(request.reasoningEffort === undefined
-            ? {}
-            : { reasoningEffort: ReasoningEffortId(request.reasoningEffort) }),
-        })
-        const selected: AgentModelSelection = {
-          provider: resolved.provider,
-          model: resolved.model,
-          ...(resolved.reasoningEffort === undefined
-            ? {}
-            : { reasoningEffort: resolved.reasoningEffort }),
-        }
+        const selected = await this.resolveModelSelection(request)
         this.agents.selectForNextRequest(agent, selected)
         try {
           await this.ctx.agentDefaultModel.saveSelection(selected)
@@ -151,6 +177,35 @@ export class SessionCommandController {
         )
       }
     })
+  }
+
+  /** Resolve one model route and map provider diagnostics to the Session API failure. */
+  private async resolveModelSelection(
+    selection: Pick<SessionSelectModelRequest, 'provider' | 'model' | 'reasoningEffort'>,
+  ): Promise<AgentModelSelection> {
+    try {
+      const resolved = await this.ctx.llm.resolveCallConfig({
+        provider: selection.provider,
+        model: selection.model,
+        ...(selection.reasoningEffort === undefined
+          ? {}
+          : { reasoningEffort: ReasoningEffortId(selection.reasoningEffort) }),
+      })
+      return {
+        provider: resolved.provider,
+        model: resolved.model,
+        ...(resolved.reasoningEffort === undefined
+          ? {}
+          : { reasoningEffort: resolved.reasoningEffort }),
+      }
+    } catch (error) {
+      if (remoteErrorOf(error) !== undefined) throw error
+      throw new RemoteError(
+        'session/model-unavailable',
+        error instanceof Error ? error.message : String(error),
+        { provider: selection.provider, model: selection.model },
+      )
+    }
   }
 
   /**

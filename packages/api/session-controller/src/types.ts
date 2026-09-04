@@ -178,6 +178,7 @@ export const SESSION_SEARCH_SNIPPET_MAX_CODE_POINTS = 240
 declare module '@deepseek-ai/dsh-typert-protocol' {
   interface RemoteErrorDetailsMap {
     'session/model-unavailable': { readonly provider: string; readonly model: string }
+    'session/permission-preset-unavailable': { readonly permissionPreset: string }
     'session/conflict': {
       readonly sessionId: SessionId
       readonly requestedCwd: string
@@ -257,6 +258,10 @@ export interface SessionCreateRequest {
   readonly cwd?: string
   readonly sessionId?: SessionId
   readonly agentPreset?: string
+  /** Permission preset pinned before the first prompt; valid only for a generated Session id. */
+  readonly permissionPreset?: string
+  /** Model selection pinned before the first prompt; valid only for a generated Session id. */
+  readonly modelSelection?: ModelSelection
 }
 
 /** Session creation response value. */

@@ -44,6 +44,8 @@ pnpm dsh web
 
 `pnpm run build` 会准备仓库产物。`pnpm dsh web` 会直接使用这些已构建产物，不会重新构建。
 
+在 Windows 上，双击仓库 checkout 中的 `start.bat`，即可在本地源码或已记录产物变化时重新构建、停止该 checkout 上一次启动的 Web 进程，并打开 Web UI。重新构建会在现有进程停止前完成。launcher 会探测已安装的 Codex 与 Claude Code 可执行文件，并把其绝对路径传给匹配的可选提供方。如果该提供方的精确 JavaScript 依赖已经安装，此次锁定源码安装会保留其依赖闭包并排除该提供方 workspace，因此不会获取重复的 Windows 平台载荷；缺少可执行文件或依赖时，普通的锁定安装仍保持启用。只有完整 profile 宣告就绪后，launcher 才会报告成功；启动失败时，窗口会保持打开并指向本地错误日志。launcher 绝不会获取 remote 或修改 checkout。其他参数会传给 `dsh web`；例如，`start.bat --no-open --port 4317` 会重启服务器，但不打开浏览器。launcher 通过 Corepack 使用仓库固定的 pnpm 版本。
+
 ## 社区与支持
 
 - 通过 [GitHub Discussions](https://github.com/deepseek-ai/deepseek-harness/discussions) 提交反馈或 bug 报告。

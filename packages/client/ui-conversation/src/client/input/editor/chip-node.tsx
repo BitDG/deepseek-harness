@@ -9,9 +9,9 @@
  */
 import type { JSX } from 'react'
 import type {
-  EditorConfig, LexicalNode, NodeKey, SerializedLexicalNode, Spread,
+  EditorConfig, LexicalEditor, LexicalNode, NodeKey, SerializedLexicalNode, Spread,
 } from 'lexical'
-import { DecoratorNode } from 'lexical'
+import { $getNodeByKey, $isTextNode, DecoratorNode } from 'lexical'
 import type { ReferenceInsert } from '../../contract/input.ts'
 import { ReferenceChip } from './ReferenceChip.tsx'
 
@@ -184,12 +184,26 @@ export class ReferenceChipNode extends DecoratorNode<JSX.Element> {
   }
 
   /** React face rendered into the host element by the decorator portal. */
-  override decorate(): JSX.Element {
+  override decorate(editor: LexicalEditor): JSX.Element {
+    const key = this.getKey()
     return (
       <ReferenceChip
         label={this.__label}
         appearance={this.__appearance}
         invalid={this.__invalid}
+        onRemove={this.__appearance === 'file'
+          ? () => {
+            editor.update(() => {
+              const node = $getNodeByKey(key)
+              if (node === null) return
+              const next = node.getNextSibling()
+              if ($isTextNode(next) && next.getTextContent().startsWith(' ')) {
+                next.setTextContent(next.getTextContent().slice(1))
+              }
+              node.remove()
+            }, { discrete: true })
+          }
+          : undefined}
       />
     )
   }

@@ -79,6 +79,8 @@ function mount(overrides: Partial<WorkspaceBrowserProps> = {}) {
     forkSession: vi.fn(),
     renameWorkspace: vi.fn(async () => {}),
     deleteWorkspace: vi.fn(async () => {}),
+    openWorkspacePath: vi.fn(async () => {}),
+    setCurrentComposerDraft: vi.fn(),
     archiveSession: vi.fn(async () => {}),
     insertWorkspaceBefore: vi.fn(async () => {}),
     insertSessionBefore: vi.fn(async () => {}),
@@ -1163,6 +1165,39 @@ describe('WorkspaceBrowser', () => {
     } finally {
       warn.mockRestore()
     }
+  })
+
+  it('opens files, fills the current composer, configures a script, and launches it from the row', async () => {
+    const openWorkspacePath = vi.fn(async () => {})
+    const setCurrentComposerDraft = vi.fn()
+    mount({
+      useWorkspaces: hook(workspaceState([workspace('alpha', [], 'Alpha')])),
+      openWorkspacePath,
+      setCurrentComposerDraft,
+    })
+
+    const row = screen.getByRole('treeitem')
+    fireEvent.contextMenu(row)
+    fireEvent.click(screen.getByRole('menuitem', { name: '文件' }))
+    expect(openWorkspacePath).toHaveBeenCalledWith('/projects/alpha')
+
+    fireEvent.contextMenu(row)
+    fireEvent.click(screen.getByRole('menuitem', { name: '发送到终端' }))
+    expect(setCurrentComposerDraft).toHaveBeenCalledWith('项目名称：Alpha\n项目路径：/projects/alpha')
+
+    fireEvent.contextMenu(row)
+    fireEvent.click(screen.getByRole('menuitem', { name: '设置启动脚本…' }))
+    const input = screen.getByLabelText<HTMLInputElement>('启动脚本路径')
+    expect(input.value).toBe('/projects/alpha/start.bat')
+    expect(screen.getByText('默认脚本：/projects/alpha/start.bat')).toBeTruthy()
+    fireEvent.change(input, { target: { value: '/projects/alpha/dev-start.bat' } })
+    fireEvent.click(screen.getByRole('button', { name: '保存' }))
+    expect(screen.queryByRole('dialog')).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: '启动“Alpha”' }))
+    await waitFor(() => {
+      expect(openWorkspacePath).toHaveBeenLastCalledWith('/projects/alpha/dev-start.bat')
+    })
   })
 
   it('renames a workspace through the row menu dialog', async () => {

@@ -30,9 +30,8 @@ async function bench() {
   const runtime = await SlotTestRuntime.create()
   runtime.releaseWorkspaceSource()
   const directoryPicker = {}
-  const remote = new TestRemote(runtime.ctx)
-  Object.assign(remote, { directoryPicker })
-  runtime.ctx.provide('remote.directoryPicker', directoryPicker as never)
+  const remote = new TestRemote(runtime.ctx, { directoryPicker, session: {} })
+  runtime.ctx.provide('conversation', { input: { for: vi.fn() } } as never)
   const locale = new LocaleRuntime(runtime.ctx)
   runtime.ctx.provide('locale', locale)
   runtime.slots.installLocale(locale)

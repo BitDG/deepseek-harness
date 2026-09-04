@@ -18,6 +18,7 @@ import type {} from '@deepseek-ai/dsh-api-session-controller/client'
 import type {} from '@deepseek-ai/dsh-api-workspace-controller/client'
 // Type-only: pulls the locale plugin's Context merge (ctx.locale).
 import type {} from '@deepseek-ai/dsh-client-locale/client'
+import type { IConversation } from '@deepseek-ai/dsh-client-ui-conversation/client'
 // Type-only: pulls the SlotRegistry service merge (ctx.slots).
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 // Type-only: pulls the Session root standard-hook merge.
@@ -60,7 +61,7 @@ const NS = 'workspace'
  * declaration through `slots.inject()` instead of assuming order.
  */
 export const inject = [
-  'slots', 'sessions', 'workspaces', 'locale', 'remote', 'remote.directoryPicker',
+  'slots', 'sessions', 'workspaces', 'locale', 'remote', 'remote.directoryPicker', 'remote.session',
 ]
 
 /**
@@ -76,6 +77,15 @@ export function apply(ctx: Context): void {
     ctx, ctx.remote.directoryPicker, workspaces, sessions)
   ctx.slots.provideRoot({ hooks: { workspaces: workspaces.list } })
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-workspace: dictionaries')
+
+  // ui-conversation requires uiWorkspace before it can provide conversation.
+  // Keep that provider order one-way while following the service's HMR lifetime.
+  let conversation: IConversation | undefined
+  ctx.inject(['conversation'], (scope: Context) => {
+    const bound = scope.conversation
+    conversation = bound
+    return () => { conversation = undefined }
+  })
 
   const searchSessions: WorkspaceBrowserInjected['searchSessions'] = async (query, signal) => {
     const result = await sessions.search(query, signal)
@@ -119,6 +129,18 @@ export function apply(ctx: Context): void {
     },
     renameWorkspace: async (workspaceId, title) => { await workspaces.rename(workspaceId, title) },
     deleteWorkspace: async (workspaceId) => { await workspaces.delete(workspaceId) },
+    openWorkspacePath: async (path) => {
+      const result = await ctx.remote.session.openWorkspacePath({ path })
+      if (!result.ok) throw new Error(result.error.message)
+    },
+    setCurrentComposerDraft: (text) => {
+      const current = sessions.list.getSnapshot().current
+      if (current === undefined) throw new Error('no conversation is currently open')
+      const actx = sessions.scope(current)
+      if (actx === undefined) throw new Error(`unknown session "${current}"`)
+      if (conversation === undefined) throw new Error('conversation input is unavailable')
+      conversation.input.for(actx).setDraft(text)
+    },
     insertWorkspaceBefore: async (workspaceId, beforeWorkspaceId) => {
       await workspaces.insertBefore(workspaceId, beforeWorkspaceId)
     },

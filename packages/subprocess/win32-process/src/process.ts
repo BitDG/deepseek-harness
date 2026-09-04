@@ -159,6 +159,23 @@ function createRestrictedProcess(
   )
 }
 
+/** Encode redirected stdio and hide a console allocated for a console-less host. */
+function encodeHiddenStartupInfo(
+  startupInfo: NativePtr,
+  hStdInput: NativePtr,
+  hStdOutput: NativePtr,
+  hStdError: NativePtr,
+): void {
+  encodeStartupInfo(startupInfo, {
+    cb: abi.STARTUPINFOW_SIZE,
+    dwFlags: abi.STARTF_USESTDHANDLES | abi.STARTF_USESHOWWINDOW,
+    wShowWindow: abi.SW_HIDE,
+    hStdInput,
+    hStdOutput,
+    hStdError,
+  })
+}
+
 /**
  * Spawn a process with anonymous-pipe stdout/stderr and immediate stdin EOF.
  * @param api - active binding table.
@@ -186,13 +203,7 @@ export function spawnPipedProcess(
       }
     }
     startupInfo = allocStartupInfo()
-    encodeStartupInfo(startupInfo, {
-      cb: abi.STARTUPINFOW_SIZE,
-      dwFlags: abi.STARTF_USESTDHANDLES,
-      hStdInput: stdIn.read,
-      hStdOutput: stdOut.write,
-      hStdError: stdErr.write,
-    })
+    encodeHiddenStartupInfo(startupInfo, stdIn.read, stdOut.write, stdErr.write)
     processInfo = allocProcessInfo()
     const created = createRestrictedProcess(
       api,
@@ -358,13 +369,7 @@ export function spawnInheritedJobProcess(
       enabled.push(handle)
     }
     startupInfo = allocStartupInfo()
-    encodeStartupInfo(startupInfo, {
-      cb: abi.STARTUPINFOW_SIZE,
-      dwFlags: abi.STARTF_USESTDHANDLES,
-      hStdInput: stdIn,
-      hStdOutput: stdOut,
-      hStdError: stdErr,
-    })
+    encodeHiddenStartupInfo(startupInfo, stdIn, stdOut, stdErr)
     processInfo = allocProcessInfo()
     created = createRestrictedProcess(
       api,

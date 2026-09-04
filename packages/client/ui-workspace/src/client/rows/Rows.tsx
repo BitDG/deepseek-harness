@@ -1,8 +1,8 @@
 /**
  * Workspace browser tree row components (figma Cell set 14:3080): pure presentational —
  * all data and callbacks arrive via props. Hover swaps (folder->chevron,
- * time->ellipsis, action buttons) are CSS-only. Row ... menus are visual-only
- * except workspace Rename/Delete and session Rename/Fork/Archive; the session
+ * time->ellipsis, action buttons) are CSS-only. Workspace menus dispatch project
+ * tools plus Rename/Delete; session menus dispatch Rename/Fork/Archive. Session
  * and workspace hover cards are suppressed while a menu is open.
  */
 import { useState } from 'react'
@@ -10,10 +10,11 @@ import clsx from 'clsx'
 import {
   HoverCard, IconAlarmClockOutline16, IconArchiveOutline20, IconBranchOutline16,
   IconEditOutline16, IconEllipsisOutline16, IconFolderClose16, IconFolderOpen16,
-  IconPlusOutline16, IconTrashOutline16, IconTriangleRightFill14, Menu, relativeTime,
+  IconFolderOpenOutline16, IconPlayOutline16, IconPlusOutline16, IconSendOutline16,
+  IconSettingsOutline16, IconTrashOutline16, IconTriangleRightFill14, Menu, relativeTime,
   StateDot,
 } from '@deepseek-ai/dsh-client-ui-primitives'
-import type { StateDotState } from '@deepseek-ai/dsh-client-ui-primitives'
+import type { MenuEntry, StateDotState } from '@deepseek-ai/dsh-client-ui-primitives'
 import { abbreviateHomePath } from '@deepseek-ai/dsh-util-workspace-path'
 import type { WorkspaceBrowserProps } from '../contract/slots.ts'
 import type { GroupNode, SearchResultNode, SessionNode } from '../tree.ts'
@@ -114,7 +115,14 @@ export function ProjectRowItem({ group, onToggle, onCreate, actions, drag, home,
   onToggle: () => void
   onCreate: () => void
   /** Real-Workspace actions; absent for the ungrouped bucket (no menu shown). */
-  actions?: { rename: () => void; delete: () => void } | undefined
+  actions?: {
+    openFolder: () => void
+    sendToComposer: () => void
+    configureStartup: () => void
+    launch: () => void
+    rename: () => void
+    delete: () => void
+  } | undefined
   /** Present only for real Workspace rows in the grouped view. */
   drag?: WorkspaceRowDragProps | undefined
   /** Host account home; POSIX home-rooted hover paths display as `~`. */
@@ -126,7 +134,12 @@ export function ProjectRowItem({ group, onToggle, onCreate, actions, drag, home,
   const label = row.workspaceId === undefined ? t('group.ungrouped') : row.label
   const active = group.expanded && group.containsCurrent
   const [menuOpen, setMenuOpen] = useState(false)
-  const workspaceMenuItems = [
+  const workspaceMenuItems: readonly MenuEntry[] = [
+    { id: 'open-folder', label: t('menu.openFolder'), icon: <IconFolderOpenOutline16 /> },
+    { id: 'send-to-composer', label: t('menu.sendToComposer'), icon: <IconSendOutline16 /> },
+    { type: 'separator', id: 'workspace-tools' },
+    { id: 'configure-startup', label: t('menu.configureStartup'), icon: <IconSettingsOutline16 /> },
+    { type: 'separator', id: 'workspace-management' },
     { id: 'rename', label: t('rename'), icon: <IconEditOutline16 /> },
     { id: 'delete', label: t('delete.workspace'), icon: <IconTrashOutline16 />, danger: true },
   ]
@@ -136,6 +149,13 @@ export function ProjectRowItem({ group, onToggle, onCreate, actions, drag, home,
       role="treeitem"
       aria-expanded={row.expanded}
       onClick={onToggle}
+      onContextMenu={actions === undefined
+        ? undefined
+        : (e) => {
+          e.preventDefault()
+          e.stopPropagation()
+          setMenuOpen(true)
+        }}
       draggable={drag !== undefined}
       onDragStart={drag === undefined
         ? undefined
@@ -163,12 +183,15 @@ export function ProjectRowItem({ group, onToggle, onCreate, actions, drag, home,
             items={workspaceMenuItems}
             onSelect={(id) => {
               setMenuOpen(false)
-              // Unknown ids leave before the dispatch: a future menu row must
-              // not inherit the destructive branch as an else fallback.
-              /* v8 ignore next -- Menu can emit only the rename and delete rows supplied above. */
-              if (id !== 'rename' && id !== 'delete') return
-              if (id === 'rename') actions.rename()
-              else actions.delete()
+              switch (id) {
+                case 'open-folder': actions.openFolder(); break
+                case 'send-to-composer': actions.sendToComposer(); break
+                case 'configure-startup': actions.configureStartup(); break
+                case 'rename': actions.rename(); break
+                case 'delete': actions.delete(); break
+                /* v8 ignore next -- Menu emits only the rows supplied above. */
+                default: break
+              }
             }}
             portal
             closeOnPointerLeave
@@ -183,6 +206,17 @@ export function ProjectRowItem({ group, onToggle, onCreate, actions, drag, home,
               </button>
             )}
           />
+        )}
+        {actions !== undefined && (
+          <button
+            type="button"
+            className={css.iconButton}
+            aria-label={t('actions.launch.aria', { name: label })}
+            title={t('actions.launch.aria', { name: label })}
+            onClick={(e) => { e.stopPropagation(); actions.launch() }}
+          >
+            <IconPlayOutline16 />
+          </button>
         )}
         <button
           type="button"

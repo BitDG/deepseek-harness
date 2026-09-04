@@ -156,6 +156,8 @@ export interface ClaudeCodeRunSpec {
   readonly permissionMode: ClaudeCodePermissionMode
   /** Explicit deployment/test environment layered after shared scrubbing. */
   readonly env: Record<string, string>
+  /** Native Claude Code executable; omitted to use the Agent SDK payload. */
+  readonly executablePath?: string
   /** Subprocess termination grace passed to the shared process-tree owner. */
   readonly disposeGraceMs: number
   /** Shared subprocess service spawn operation. */
@@ -321,6 +323,9 @@ export function claudeQueryOptions(
     abortController: controller,
     cwd: spec.cwd,
     ...spec.model === undefined ? {} : { model: spec.model },
+    ...spec.executablePath === undefined
+      ? {}
+      : { pathToClaudeCodeExecutable: spec.executablePath },
     env: { ...scrubbedParentEnv(), ...spec.env },
     persistSession: false,
     disallowedTools: spec.permissionMode === 'plan'

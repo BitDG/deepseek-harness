@@ -313,7 +313,10 @@ describe('workspace browser rows', () => {
     }
     render(<ProjectRowItem
       group={group} onToggle={onToggle} onCreate={vi.fn()}
-      actions={{ rename: onRename, delete: onDelete }} t={t}
+      actions={{
+        openFolder: vi.fn(), sendToComposer: vi.fn(), configureStartup: vi.fn(), launch: vi.fn(),
+        rename: onRename, delete: onDelete,
+      }} t={t}
     />)
     fireEvent.click(screen.getByRole('button', { name: '工作区“Project”的操作' }))
     // Opening the menu neither toggles the group nor renames yet.
@@ -331,6 +334,36 @@ describe('workspace browser rows', () => {
     fireEvent.click(screen.getByRole('button', { name: '工作区“Project”的操作' }))
     fireEvent.keyDown(document, { key: 'Escape' })
     expect(screen.queryByRole('menu')).toBeNull()
+  })
+
+  it('workspace context menu exposes project tools and the row play button launches directly', () => {
+    const openFolder = vi.fn()
+    const sendToComposer = vi.fn()
+    const configureStartup = vi.fn()
+    const launch = vi.fn()
+    const group: GroupNode = {
+      key: 'project', workspaceId: wid('project'), cwd: 'C:\\projects\\project', createdAt: 0, label: 'Project',
+      sessionCount: 0, expanded: false, containsCurrent: false, sessions: [],
+    }
+    render(<ProjectRowItem
+      group={group} onToggle={vi.fn()} onCreate={vi.fn()} t={t}
+      actions={{ openFolder, sendToComposer, configureStartup, launch, rename: vi.fn(), delete: vi.fn() }}
+    />)
+
+    fireEvent.contextMenu(screen.getByRole('treeitem'))
+    fireEvent.click(screen.getByRole('menuitem', { name: '文件' }))
+    expect(openFolder).toHaveBeenCalledOnce()
+
+    fireEvent.contextMenu(screen.getByRole('treeitem'))
+    fireEvent.click(screen.getByRole('menuitem', { name: '发送到终端' }))
+    expect(sendToComposer).toHaveBeenCalledOnce()
+
+    fireEvent.contextMenu(screen.getByRole('treeitem'))
+    fireEvent.click(screen.getByRole('menuitem', { name: '设置启动脚本…' }))
+    expect(configureStartup).toHaveBeenCalledOnce()
+
+    fireEvent.click(screen.getByRole('button', { name: '启动“Project”' }))
+    expect(launch).toHaveBeenCalledOnce()
   })
 
   it('workspace hover card shows its details and copies the full directory path', async () => {

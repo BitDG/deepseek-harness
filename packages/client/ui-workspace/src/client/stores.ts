@@ -25,6 +25,8 @@ type WorkspaceViewState = {
   sessionOrderByAccount: Record<string, string[]>
   /** Last observed update timestamps per order account for one-time promotion events. */
   sessionUpdatedAtByAccount: Record<string, Record<string, number>>
+  /** Optional host script launched by the Workspace row's play affordance. */
+  startupScriptByWorkspace: Record<string, string>
 }
 
 /**
@@ -43,6 +45,7 @@ type WorkspaceViewActions = {
     updatedAt: Record<string, number>,
   ) => void
   setSessionOrder: (draft: WorkspaceViewState, accountKey: string, order: string[]) => void
+  setStartupScript: (draft: WorkspaceViewState, workspaceKey: string, path: string) => void
 }
 
 /**
@@ -57,8 +60,9 @@ export function createWorkspaceViewStore(): EngineStoreHandle<WorkspaceViewState
       groupExpansion: {},
       sessionOrderByAccount: {},
       sessionUpdatedAtByAccount: {},
+      startupScriptByWorkspace: {},
     }),
-    persist: 'dsh.workspace.view.v5',
+    persist: 'dsh.workspace.view.v6',
     actions: {
       setGroupBy: (d, mode: SessionGroupBy) => { d.groupBy = mode },
       setOrderBy: (d, mode: SessionOrderBy) => { d.orderBy = mode },
@@ -74,6 +78,9 @@ export function createWorkspaceViewStore(): EngineStoreHandle<WorkspaceViewState
         d.sessionUpdatedAtByAccount = Object.fromEntries(
           Object.entries(d.sessionUpdatedAtByAccount).filter(([key]) => retained.has(key)),
         )
+        d.startupScriptByWorkspace = Object.fromEntries(
+          Object.entries(d.startupScriptByWorkspace).filter(([key]) => retained.has(key)),
+        )
       },
       syncSessionOrderAccount: (d, accountKey: string, order: string[], updatedAt: Record<string, number>) => {
         d.sessionOrderByAccount[accountKey] = order
@@ -81,6 +88,15 @@ export function createWorkspaceViewStore(): EngineStoreHandle<WorkspaceViewState
       },
       setSessionOrder: (d, accountKey: string, order: string[]) => {
         d.sessionOrderByAccount[accountKey] = order
+      },
+      setStartupScript: (d, workspaceKey: string, path: string) => {
+        if (path === '') {
+          d.startupScriptByWorkspace = Object.fromEntries(
+            Object.entries(d.startupScriptByWorkspace).filter(([key]) => key !== workspaceKey),
+          )
+        } else {
+          d.startupScriptByWorkspace[workspaceKey] = path
+        }
       },
     },
   })

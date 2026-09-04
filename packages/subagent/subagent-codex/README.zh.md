@@ -9,7 +9,7 @@ kind: "package-bundle"
 
 ## 概述
 
-`dsh-subagent-codex` 注册由 Profile 命名、默认名称为 `codex` 的 Codex subagent 提供方，它在发起委派的会话工作区中通过官方 app-server 协议运行真实的 Codex 子 agent（智能体）。每次接受的运行以 `app-server --stdio` 启动包内 Codex wrapper，创建一个临时 Codex 线程，提交一个自包含文本任务，并通过共享的 subagent 结果约定返回选定的最终答案——或独立的安全失败诊断。该提供方作为可选的 Profile Bundle 发布：安装会带入官方 wrapper 与一个兼容的原生平台载荷，而注册的提供方在绑定工具调用前保持休眠。原生 Codex 配置与身份验证继续是权威来源，Profile 选择的 `permissionMode` 会映射进线程的 approval、reviewer 与 sandbox 字段。当子 agent 应该是与父 harness 完全隔离的真实 Codex 会话时，选择它。
+`dsh-subagent-codex` 注册由 Profile 命名、默认名称为 `codex` 的 Codex subagent 提供方，它在发起委派的会话工作区中通过官方 app-server 协议运行真实的 Codex 子 agent（智能体）。每次接受的运行以 `app-server --stdio` 启动显式配置的原生可执行文件或包内 Codex wrapper，创建一个临时 Codex 线程，提交一个自包含文本任务，并通过共享的 subagent 结果约定返回选定的最终答案——或独立的安全失败诊断。该提供方作为可选的 Profile Bundle 发布：安装会带入官方 wrapper 与一个兼容的原生平台载荷，而注册的提供方在绑定工具调用前保持休眠。原生 Codex 配置与身份验证继续是权威来源，Profile 选择的 `permissionMode` 会映射进线程的 approval、reviewer 与 sandbox 字段。当子 agent 应该是与父 harness 完全隔离的真实 Codex 会话时，选择它。
 
 ## 目录
 
@@ -46,6 +46,7 @@ dsh --profile <name>
 | `providerName` | `codex` | `ctx.subagents` 上的非空注册名称；每个已挂载实例都需要唯一值 |
 | `model` | Codex 原生设置 | 为本提供方实例的每个线程固定的可选非空模型名称；省略时不发送 app-server 覆盖 |
 | `env` | `{}` | 叠加在已清理凭据的父环境之上的显式子进程环境 |
+| `executablePath` | 固定的包内 wrapper | 可选的原生 Codex 可执行文件绝对路径；提供方在加载时验证它，且绝不从 `PATH` 发现路径 |
 | `permissionMode` | `never` | 为本提供方实例的每个线程固定的原生非交互审批与沙箱模式 |
 | `disposeGraceMs` | `3000` | 共享进程树责任方各终止层级之间的宽限 |
 
@@ -55,7 +56,7 @@ dsh --profile <name>
 | `approve-for-me` | `approvalPolicy: on-request`、`approvalsReviewer: auto_review`、`sandbox: workspace-write` | 由 Codex 自动评审权限请求，不等待人工 |
 | `dangerously-bypass-approvals-and-sandbox` | `approvalPolicy: never`、`sandbox: danger-full-access` | 跳过审批与 sandbox；必须显式选择该值 |
 
-生成的[配置目录](../../../docs/config-catalog.zh.md#deepseek-aidsh-subagent-codex)是每个受支持字段及其 JSDoc 的穷尽式真源。已配置的 `model` 会原样传给每个临时 `thread/start`；省略时保留原生模型选择。提供方不会发现模型、改写别名、选择 `modelProvider` 或 `serviceTier`，也不会设置 fallback。具有凭证特征的环境变量会在显式 `env` 覆盖生效前被移除，因此供子进程使用的 API 密钥必须在该配置中显式提供。
+生成的[配置目录](../../../docs/config-catalog.zh.md#deepseek-aidsh-subagent-codex)是每个受支持字段及其 JSDoc 的穷尽式真源。已配置的 `model` 会原样传给每个临时 `thread/start`；省略时保留原生模型选择。已配置的 `executablePath` 会直接启动该原生二进制；省略时使用固定的包内 wrapper。提供方不会检查 `PATH`、发现模型、改写别名、选择 `modelProvider` 或 `serviceTier`，也不会设置 fallback。具有凭证特征的环境变量会在显式 `env` 覆盖生效前被移除，因此供子进程使用的 API 密钥必须在该配置中显式提供。
 
 ### 暴露工具
 
@@ -83,7 +84,7 @@ dsh --profile <name>
 
 ### 失败与恢复
 
-省略 optional dependencies、当前平台不受支持或所选载荷缺失的安装会让提供方保持休眠，并在第一次委派时于 `initialize` 阶段以安全 `unknown` 类别和任何已观测进程结果失败；不存在宿主 CLI 回退。原始 wrapper 文本只保留在 Host stderr。被取消的运行以 `aborted` 结算。
+未配置 `executablePath` 时，省略 optional dependencies、当前平台不受支持或所选载荷缺失的安装会让提供方保持休眠，并在第一次委派时于 `initialize` 阶段以安全 `unknown` 类别和任何已观测进程结果失败。无效的显式路径会在插件加载时失败。提供方绝不会回退到 `PATH` 查找。原始 wrapper 文本只保留在 Host stderr。被取消的运行以 `aborted` 结算。
 
 -----
 
@@ -138,7 +139,7 @@ dsh --profile <name>
 
 #### 模型看到什么
 
-Codex 子级会在一个全新的临时线程中，以单个轮次接收这些独立文本块。它的工作区是父会话 cwd；所选提供方实例会固定已配置的模型、环境、非交互审批策略与沙箱模式，而省略的模型及其余产品设置来自 Codex 原生配置。可执行版本来自 Bundle 锁定的平台载荷。
+Codex 子级会在一个全新的临时线程中，以单个轮次接收这些独立文本块。它的工作区是父会话 cwd；所选提供方实例会固定已配置的模型、环境、非交互审批策略、沙箱模式与可执行文件路径，而省略的模型及其余产品设置来自 Codex 原生配置。可执行版本来自已配置的原生二进制或 Bundle 锁定的平台载荷。
 
 #### Token 影响
 
@@ -172,7 +173,7 @@ Codex 子级会在一个全新的临时线程中，以单个轮次接收这些�
 - **每次运行均新建一个进程、一个线程和一个轮次**——不支持续接、恢复、池化、进度流或产品会话持久化。
 - **静态选择实例**——Profile 配置项固定提供方名称、可选模型与工具绑定；调用无法动态选择或修改提供方与模型，而且每个公开工具都需要唯一的 `toolName`。
 - **身份验证与账户状态仍由原生机制管理**——Bundle 会提供 CLI，但不会创建账户、登录、信任项目或改写 Codex 设置；配置与身份验证失败会公开其生命周期阶段与安全的 `unknown` 回退，而不会增加单独的公开分类体系。
-- **委派时必须存在原生平台载荷**——省略 optional dependencies 的安装、不受支持的平台以及缺失或损坏的载荷都会在第一次运行时失败；不会回退到宿主 CLI。
+- **委派时必须有一个有效的可执行文件来源**——已配置的原生绝对路径会绕过包内载荷；否则，省略 optional dependencies 的安装、不受支持的平台以及缺失或损坏的载荷都会在第一次运行时失败。提供方绝不会搜索 `PATH`。
 - **兼容性由开发证据锁定**——若要从已验证的 0.149.1 协议基线升级，必须重新生成上游 schema 证据，并重新运行握手、答案选择、审批、取消、无密钥真实产品以及带密钥的 DeepSeek 随机数测试。
 - **没有人工审批路径**——已知的无人值守审批请求会被拒绝，未知服务器请求会以默认拒绝方式使运行失败；三种 Profile 模式都不会创建 DSH 交互通道或逐次调用 allow 策略。
 - **assistant 载荷仅包含最终文本**——失败运行可以额外公开独立的安全诊断；推理、过程说明、中间消息、工具通信、用量信息、原始 stderr 和工作区差异不会进入父会话，通用 Job id、通知与状态来自共享作业运行时。

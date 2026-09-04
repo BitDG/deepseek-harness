@@ -8,7 +8,7 @@ import type { WorkspaceBrowserInjected, WorkspacePickerInjected } from '@deepsee
 import { WorkspaceBrowser } from '../src/client/rows/WorkspaceBrowser.tsx'
 import { WorkspacePicker } from '../src/client/WorkspacePicker.tsx'
 
-async function bench() {
+async function bench(options: { provideConversation?: boolean } = {}) {
   const ctx = new Context()
   await ctx.plugin(SlotRegistry).await()
   const create = vi.fn(async (input: { name: string } | { path: string }) => ({
@@ -28,6 +28,9 @@ async function bench() {
   const binding = vi.fn(() => ({ session: { rename: renameSession } }))
   const fork = vi.fn(async () => 'forked' as never)
   const subscribe = () => () => {}
+  let currentSession: string | undefined
+  const setDraft = vi.fn()
+  const inputFor = vi.fn(() => ({ setDraft }))
   ctx.provide('workspaces', {
     list: {
       getSnapshot: () => ({
@@ -45,7 +48,7 @@ async function bench() {
   ctx.provide('sessions', {
     list: {
       getSnapshot: () => ({
-        ids: [], byId: {}, current: undefined, phase: 'ready',
+        ids: [], byId: {}, current: currentSession as never, phase: 'ready',
         subagentsByParent: {}, jobsBySession: {}, currentAddress: undefined,
       }),
       subscribe,
@@ -57,11 +60,14 @@ async function bench() {
     searchResultLimit: 20,
     binding,
     fork,
+    scope: vi.fn(() => ({})),
   } as never)
   const pickDirectory = vi.fn(() => Promise.resolve({ ok: true as const, value: '/projects/picked' }))
   const directoryPicker = { pick: pickDirectory }
-  Object.assign(new TestRemote(ctx), { directoryPicker })
-  ctx.provide('remote.directoryPicker', directoryPicker as never)
+  const openWorkspacePath = vi.fn(async () => ({ ok: true as const, value: { opened: true as const } }))
+  const conversation = { input: { for: inputFor } }
+  if (options.provideConversation !== false) ctx.provide('conversation', conversation as never)
+  new TestRemote(ctx, { directoryPicker, session: { openWorkspacePath } })
   const locale = new LocaleRuntime(ctx)
   // These specs assert the shipped Chinese copy. There is no jsdom `window`
   // in this lane, so browser-language detection never runs and the locale
@@ -71,6 +77,8 @@ async function bench() {
   return {
     ctx, slots: ctx.get('slots') as SlotRegistry, locale, create, rename,
     insertSessionBefore, open, clear, search, renameSession, binding, fork, pickDirectory,
+    openWorkspacePath, inputFor, setDraft, conversation,
+    selectSession: (id: string | undefined) => { currentSession = id },
   }
 }
 
@@ -83,9 +91,28 @@ function declare(slots: SlotRegistry, ...names: HoleName[]): () => void {
 }
 
 describe('ui-workspace apply', () => {
+  it('activates before a conversation provider that waits for uiWorkspace', async () => {
+    const b = await bench({ provideConversation: false })
+    declare(b.slots, 'sidebar.workspaces')
+    const workspaceFiber = b.ctx.plugin({ inject: [...inject], apply })
+    const conversationFiber = b.ctx.inject(['uiWorkspace'], (scope) => {
+      scope.provide('conversation', b.conversation as never)
+    })
+
+    await Promise.all([workspaceFiber.await(), conversationFiber.await()])
+    b.selectSession('session')
+    const browser = (b.slots.entries('sidebar.workspaces')[0]!.inject as () => WorkspaceBrowserInjected)()
+    browser.setCurrentComposerDraft('Project: ws')
+    expect(b.setDraft).toHaveBeenCalledWith('Project: ws')
+
+    await conversationFiber.dispose()
+    expect(() => { browser.setCurrentComposerDraft('stale') })
+      .toThrow('conversation input is unavailable')
+  })
+
   it('declares the services it drives', () => {
     expect(inject).toEqual([
-      'slots', 'sessions', 'workspaces', 'locale', 'remote', 'remote.directoryPicker',
+      'slots', 'sessions', 'workspaces', 'locale', 'remote', 'remote.directoryPicker', 'remote.session',
     ])
   })
 
@@ -138,6 +165,12 @@ describe('ui-workspace apply', () => {
     expect(b.fork).toHaveBeenCalledWith({ sessionId: 'session', increaseTitle: true })
     await browser.renameWorkspace('ws' as never, 'renamed')
     expect(b.rename).toHaveBeenCalledWith('ws', 'renamed')
+    await browser.openWorkspacePath('/projects/ws/start.bat')
+    expect(b.openWorkspacePath).toHaveBeenCalledWith({ path: '/projects/ws/start.bat' })
+    b.selectSession('session')
+    browser.setCurrentComposerDraft('Project: ws')
+    expect(b.inputFor).toHaveBeenCalledOnce()
+    expect(b.setDraft).toHaveBeenCalledWith('Project: ws')
     await browser.insertSessionBefore('ws' as never, 's1' as never, 's2' as never)
     expect(b.insertSessionBefore).toHaveBeenCalledWith('ws', 's1', 's2')
     await browser.createWorkspace({ path: '/tmp/browser-project' })

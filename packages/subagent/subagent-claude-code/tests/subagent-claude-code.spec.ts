@@ -391,13 +391,20 @@ describe('task admission and package contracts', () => {
       )
     }
 
-    const parsed = yaml.load(readFileSync(resolve(root, manifest.dsh!.bundle!.patch!), 'utf8'))
+    const patch = readFileSync(resolve(root, manifest.dsh!.bundle!.patch!), 'utf8')
+    expect(patch).toContain(
+      'executablePath: !!js process.env.DSH_CLAUDE_CODE_EXECUTABLE_PATH',
+    )
+    const parsed = yaml.load(patch.replace('!!js ', ''))
     const rows = Array.isArray(parsed)
-      ? (parsed as Array<{ insert?: Array<{ id?: string; name?: string }> }>).flatMap(entry => entry.insert ?? [])
+      ? (parsed as Array<{ insert?: Array<{ id?: string; name?: string; config?: unknown }> }>).flatMap(entry => entry.insert ?? [])
       : []
     expect(rows).toEqual([{
       id: 'subagent-claude-code',
       name: '@deepseek-ai/dsh-subagent-claude-code',
+      config: {
+        executablePath: 'process.env.DSH_CLAUDE_CODE_EXECUTABLE_PATH',
+      },
     }])
     expect(JSON.stringify(rows)).not.toContain('tool-subagent')
   })
@@ -443,6 +450,8 @@ describe('task admission and package contracts', () => {
     })).rejects.toThrow(
       `disposeGraceMs must be no greater than ${MAX_TIMER_DELAY_MS}`,
     )
+    await expect(ctx.plugin(claudeCode, { executablePath: 'relative/claude.exe' }))
+      .rejects.toThrow('executablePath must be absolute')
     await ctx.fiber.dispose()
   })
 
@@ -870,6 +879,7 @@ describe('query options and result mapping', () => {
     const spec: ClaudeCodeRunSpec = {
       cwd: '/workspace',
       model: 'claude-explicit-model',
+      executablePath: process.execPath,
       permissionMode: 'acceptEdits',
       env: {
         HOST_VISIBLE: 'overridden',
@@ -897,7 +907,7 @@ describe('query options and result mapping', () => {
       permissionMode: 'acceptEdits',
       supportedDialogKinds: ['refusal_fallback_prompt'],
     })
-    expect(options).not.toHaveProperty('pathToClaudeCodeExecutable')
+    expect(options.pathToClaudeCodeExecutable).toBe(process.execPath)
     expect(options).not.toHaveProperty('allowDangerouslySkipPermissions')
     expect(options.env).toMatchObject({
       HOST_VISIBLE: 'overridden',

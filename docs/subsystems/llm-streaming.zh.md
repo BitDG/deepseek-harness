@@ -1014,6 +1014,40 @@ stream(options: GenerateOptions): AsyncIterable<StreamChunk>
 
 Source: [`packages/llm/llm/src/index.ts`](../../packages/llm/llm/src/index.ts)
 
+<a id="ctxomniroute--omniroutecontroller"></a>
+
+### `ctx.omniRoute` — `OmniRouteController`
+
+Host service backing one-click OmniRoute lifecycle and provider onboarding.
+
+```ts cordis-catalog
+/**
+ * Inspect the endpoint without starting a process or changing settings.
+ * @param signal - caller cancellation.
+ * @returns current endpoint, ownership, executable, and provider-profile facts.
+ */
+@Remote async status(signal: AbortSignal): Promise<OmniRouteStatus>
+
+/**
+ * Adopt or silently start OmniRoute, select its Antigravity and OpenCode
+ * models, and write one live `llm-pi-ai.providers.omniroute` profile.
+ * @param signal - caller cancellation; a child created by a cancelled call is rolled back.
+ * @returns managed/adopted state and the stored model count.
+ * @throws RemoteError when the port is occupied by another service, startup fails, discovery fails, or settings refuse the profile.
+ */
+@Remote startAndConnect(signal: AbortSignal): Promise<OmniRouteConnectValue>
+
+/**
+ * Stop only the process tree created by this plugin instance.
+ * @param signal - caller cancellation while waiting for tree quiescence.
+ * @returns stopped state; the provider profile remains configured.
+ * @throws RemoteError when the healthy service is external or teardown does not settle.
+ */
+@Remote async stop(signal: AbortSignal): Promise<OmniRouteStopValue>
+```
+
+Source: [`packages/llm/llm-omniroute/src/index.ts`](../../packages/llm/llm-omniroute/src/index.ts)
+
 <a id="llm-events"></a>
 
 ### `llm/*` events

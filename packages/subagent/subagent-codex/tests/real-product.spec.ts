@@ -5,6 +5,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  realpathSync,
   writeFileSync,
 } from 'node:fs'
 import { rm } from 'node:fs/promises'
@@ -42,6 +43,7 @@ const codexPackage = JSON.parse(readFileSync(
 )) as { version: string; bin: { codex: string } }
 const codexEntry = resolve(dirname(codexPackageJson), codexPackage.bin.codex)
 const codexPackageRoot = dirname(dirname(codexEntry))
+const systemCodexPath = process.env.DSH_CODEX_EXECUTABLE_PATH
 
 const roots: string[] = []
 const fixtures: ResponsesFixture[] = []
@@ -143,6 +145,7 @@ async function realRuntime(): Promise<RealRuntime> {
 async function realHarness(
   script: ResponsesScript,
   permissionMode?: CodexPermissionMode,
+  executablePath?: string,
 ): Promise<{
   readonly harness: RealHarness
   readonly fixture: ResponsesFixture
@@ -152,6 +155,7 @@ async function realHarness(
   await ctx.plugin(codex, {
     env: instance.env,
     ...permissionMode === undefined ? {} : { permissionMode },
+    ...executablePath === undefined ? {} : { executablePath },
     disposeGraceMs: 2_000,
   })
   const parent = {
@@ -213,6 +217,34 @@ function responseInputTexts(body: Record<string, unknown>): string[] {
     ))
   })
 }
+
+describe.skipIf(systemCodexPath === undefined)('configured system Codex executable', () => {
+  it('runs one real app-server task through the configured native binary', async () => {
+    const sentinel = 'SYSTEM_CODEX_EXECUTABLE_SENTINEL'
+    const { harness, fixture } = await realHarness(
+      [{ kind: 'complete', text: sentinel }],
+      'approve-for-me',
+      systemCodexPath,
+    )
+    const run = await harness.ctx.subagents.start('codex', {
+      prompt: [{ type: 'text', text: 'Return the fixture sentinel exactly.' }],
+      parent: harness.parent,
+      signal: new AbortController().signal,
+    })
+    await expect(run.result).resolves.toEqual({
+      output: [{ type: 'text', text: sentinel }],
+      stopReason: 'completed',
+    })
+    await run.dispose()
+    expect(harness.spawnSpecs[0]?.argv).toEqual([
+      realpathSync(systemCodexPath!),
+      'app-server',
+      '--stdio',
+    ])
+    expect(fixture.requests).toHaveLength(1)
+    await expectQuiescent(harness.handles)
+  }, 60_000)
+})
 
 describe('real @openai/codex 0.149.1 product', () => {
   it('starts approve-for-me through the real app-server and returns exact text', async () => {

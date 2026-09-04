@@ -123,6 +123,10 @@ export type WorkspaceBrowserInjected = {
   renameWorkspace: (workspaceId: WorkspaceId, title: string) => Promise<void>
   /** Delete only a Host Workspace registration; directory and Session logs remain. */
   deleteWorkspace: (workspaceId: WorkspaceId) => Promise<void>
+  /** Hand a Workspace folder or configured startup script to the Host desktop. */
+  openWorkspacePath: (path: string) => Promise<void>
+  /** Replace the current conversation's composer draft with Workspace text prepared by the surface. */
+  setCurrentComposerDraft: (text: string) => void
   /**
    * Reorder a Workspace in the durable registry display order.
    * Omitted anchor appends to the end.

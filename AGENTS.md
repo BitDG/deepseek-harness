@@ -84,7 +84,13 @@ pnpm run demo:ptc -- "task"  # headless PTC mode run (needs key)
 
 ### Host sandbox failures
 
-If a required `gh`, `pnpm`, build, test, or generator command fails because the sandbox blocks credentials, network, IPC, watching, or nested `sandbox-exec`, retry unchanged with the narrowest host escalation. Require sandbox evidence; never bypass test failures or the product sandbox.
+Retry `gh`, `pnpm`, build, test, or generator commands unchanged with the narrowest host escalation only when sandbox evidence shows blocked credentials, network, IPC, watching, or nested `sandbox-exec`; never bypass failures or the product sandbox.
+
+`start.bat`: reuse Codex/Claude; build-before-shutdown; backup/reset NUL-settings; verify PID/listener/HTTP; patch-disable bundles ([decision](.agents/notes/implemented/process/2026-09-01-windows-source-launcher-build-and-restart.md)).
+
+When Web startup reports only `AbortError`, isolate incompatible bundles on a non-3080 port: `dsh-agy-link@0.4.24` imports the removed `CallId` export. A one-run compatibility patch is diagnostic only; when bare `start.bat` must remain usable, persist the confirmed disable in the profile `cordis.patch.yml` until a compatible release, then prove two consecutive launches with PID replacement, listener ownership, and unauthenticated HTTP `401`.
+
+Plugins that retain a default HTTP client after composition must resolve the Host's current `globalThis.fetch` for each request: `dsh-codex-subscription` temporarily installs and then invalidates a scoped wrapper. Prove the fix by constructing the client during that replacement, restoring `fetch`, clearing the scoped base, and completing a mocked request.
 
 ### Run relevant checks locally
 

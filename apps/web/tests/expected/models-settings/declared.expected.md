@@ -35,3 +35,8 @@
   - button "添加自定义提供方":
     - img
     - text: 添加自定义提供方
+  - region "OmniRoute":
+    - heading "OmniRoute" [level=3]
+    - paragraph: 通过一个本地网关，将 OmniRoute 模型接入 DeepSeek Harness。
+    - paragraph: 本地服务尚未启动。
+    - button "启动并接入"

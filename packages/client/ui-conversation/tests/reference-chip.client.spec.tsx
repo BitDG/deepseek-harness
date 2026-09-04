@@ -3,8 +3,8 @@
  * ReferenceChip visual face: icon selection per appearance, the trigger
  * marker fallback, label truncation container, and invalid styling.
  */
-import { afterEach, describe, expect, it } from 'vitest'
-import { cleanup, render } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { cleanup, fireEvent, render } from '@testing-library/react'
 import { ReferenceChip } from '../src/client/input/editor/ReferenceChip.tsx'
 
 afterEach(cleanup)
@@ -30,5 +30,14 @@ describe('ReferenceChip', () => {
     const chip = container.firstElementChild
     expect(chip).not.toBeNull()
     expect([...(chip?.classList ?? [])].some(name => name.includes('invalid'))).toBe(true)
+  })
+
+  it('offers a focusable remove action when the node supplies one', () => {
+    const onRemove = vi.fn()
+    const { getByRole } = render(
+      <ReferenceChip label="article.md" appearance="file" invalid={false} onRemove={onRemove} />,
+    )
+    fireEvent.click(getByRole('button', { name: 'article.md' }))
+    expect(onRemove).toHaveBeenCalledOnce()
   })
 })
