@@ -41,3 +41,15 @@ worktrees/
 .agents/worktrees/
 .typert-*/
 .vibespace/
+
+# Local repository tooling and runtime state
+/.codegraph/
+/.dsh/
+/apps/cli/src/.dsh/
+
+# TypeScript output accidentally emitted beside source files
+/packages/*/*/src/**/*.js
+/packages/*/*/tests/**/*.js
+/packages/*/*/tsdown.config.js
+/packages/client/tsdown.client.js
+/scripts/client-build-environment.js
