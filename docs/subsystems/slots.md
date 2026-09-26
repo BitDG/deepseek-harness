@@ -106,10 +106,10 @@ Use owner props for values already known at one render occurrence, registration 
 
 ## Current hierarchy
 
-The hierarchy below is the shipped declaration tree. A child exists only while the named parent entry is mounted; optional feature entries can therefore make a subtree appear or disappear as one lifecycle unit.
+The root declares the optional `shell.presentation` slot. Both the default frame and alternative presentations render native columns through the `shell.native` factory, which owns the four top-level declarations below. Each native column is rendered once per shell. Other children exist only while their declaring entry is active; disposing that entry removes its subtree.
 
 ```text
-root
+shell.native (factory)
 ├─ sidebar
 │  ├─ sidebar.brand.mark
 │  ├─ sidebar.brand.name

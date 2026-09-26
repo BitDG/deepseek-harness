@@ -26,7 +26,7 @@ const hit: TriggerHit = {
   span: { start: 0, end: 2, draftRev: 1 },
 }
 
-const CLOSED: MenuState = { open: false, hit: null, generation: 0, groups: [], highlight: null }
+const CLOSED: MenuState = { open: false, hit: null, generation: 0, groups: [], activeTab: null, highlight: null }
 
 function openState(partial?: Partial<MenuState>): MenuState {
   return {
@@ -37,6 +37,7 @@ function openState(partial?: Partial<MenuState>): MenuState {
       { source: 'command', status: 'ready', items: [{ name: 'goal', description: 'Set up a goal', icon: 'file' }, { name: 'plan' }] },
       { source: 'skill', status: 'pending', items: [] },
     ],
+    activeTab: null,
     highlight: { source: 'command', index: 0 },
     ...partial,
   }
@@ -65,6 +66,7 @@ function mount(state: MenuState, crumbs: ReadonlyMap<string, readonly InputTrigg
   const onPick = vi.fn()
   const onCrumb = vi.fn()
   const onHover = vi.fn()
+  const onActivateTab = vi.fn()
   const onDismiss = vi.fn()
   const view = render(
     <MenuView
@@ -73,11 +75,12 @@ function mount(state: MenuState, crumbs: ReadonlyMap<string, readonly InputTrigg
       onPick={onPick}
       onCrumb={onCrumb}
       onHover={onHover}
+      onActivateTab={onActivateTab}
       onDismiss={onDismiss}
       t={t}
     />,
   )
-  return { menu, headers, onPick, onCrumb, onHover, onDismiss, view }
+  return { menu, headers, onPick, onCrumb, onHover, onActivateTab, onDismiss, view }
 }
 
 /** The bounded menu shell: it owns the height clamp, the listbox scrolls inside it. */
@@ -150,6 +153,36 @@ describe('MenuView', () => {
     }))
     expect(screen.getAllByRole('option').map(o => o.textContent)).toEqual(['goal'])
     expect(screen.queryByRole('status')).toBeNull()
+  })
+
+  it('renders tab sources in one rail and switches the visible candidate pane', () => {
+    const { onActivateTab } = mount(openState({
+      groups: [
+        { source: 'reference', menuTab: true, status: 'ready', items: [{ name: 'README.md' }] },
+        { source: 'CodePen', menuTab: true, status: 'ready', items: [{ name: 'Planet shader' }] },
+        { source: 'GitHub', menuTab: true, status: 'ready', items: [{ name: 'open-webui' }] },
+      ],
+      activeTab: 'reference',
+      highlight: { source: 'reference', index: 0 },
+    }))
+    expect(screen.getByRole('tablist', { name: '引用来源' })).toBeTruthy()
+    expect(screen.getAllByRole('tab').map(tab => tab.textContent)).toEqual(['文件1', 'CodePen1', 'GitHub1'])
+    expect(screen.getAllByRole('option').map(option => option.textContent)).toEqual(['README.md'])
+    expect(fireEvent.mouseDown(screen.getAllByRole('tab')[2]!)).toBe(false)
+    expect(onActivateTab).toHaveBeenCalledWith('GitHub')
+  })
+
+  it('shows a localized empty state for the selected ready tab', () => {
+    mount(openState({
+      groups: [
+        { source: 'reference', menuTab: true, status: 'ready', items: [] },
+        { source: 'GitHub', menuTab: true, status: 'ready', items: [{ name: 'repo' }] },
+      ],
+      activeTab: 'reference',
+      highlight: null,
+    }))
+    expect(screen.getByRole('status').textContent).toBe('没有匹配的引用')
+    expect(screen.queryByRole('option')).toBeNull()
   })
 
   it('titles each group with the localized source name, raw name for unknown sources, none for empty ready groups', () => {
@@ -295,6 +328,7 @@ describe('MenuView', () => {
           onPick={vi.fn()}
           onCrumb={vi.fn()}
           onHover={vi.fn()}
+          onActivateTab={vi.fn()}
           onDismiss={onDismiss}
           t={t}
         />

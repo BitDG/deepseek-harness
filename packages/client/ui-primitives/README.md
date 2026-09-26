@@ -36,7 +36,7 @@ Check this table before writing a control in a feature package. A plugin cannot 
 
 | Export | What it is |
 |---|---|
-| `Button` | Clickable action; `variant` selects `primary`, `ghost`, `outline`, or `toolbar`. |
+| `Button` | Clickable action; `variant` selects neutral `primary`, brand-blue `accent`, `ghost`, `outline`, or `toolbar`. |
 | `Switch` | Two-state toggle, 36×20. `label` is required, so the control cannot ship unnamed. |
 | `Checkbox` | Labeled native checkbox with controlled state, keyboard interaction, and disabled styling; the caller supplies localized `label` text. |
 | `Input` | Single-line text entry for search boxes and inline forms. |

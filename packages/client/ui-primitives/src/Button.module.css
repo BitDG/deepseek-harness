@@ -14,6 +14,12 @@
   color: var(--dsw-alias-label-primary);
   background: transparent;
   padding: 0 14px;
+  corner-shape: round;
+}
+
+.button:focus-visible {
+  outline: 2px solid var(--dsw-alias-link);
+  outline-offset: 2px;
 }
 
 .button:disabled {
@@ -42,6 +48,16 @@
 
 .primary:hover:not(:disabled) {
   background: var(--dsw-alias-button-primary-hover);
+}
+
+.accent {
+  background: var(--dsw-alias-button-accent-fill);
+  color: var(--dsw-alias-label-primary-foreground);
+}
+
+.accent:hover:not(:disabled),
+.accent:active:not(:disabled) {
+  background: var(--dsw-alias-button-accent-hover);
 }
 
 .ghost:hover:not(:disabled) {

@@ -1,7 +1,8 @@
 /**
  * Trigger candidate menu: renders the InputTriggerService menu store into the
  * conversation.input.overlay anchor. Closed state renders null (the overlay
- * slot stays mounted); groups render in roster order under localized title
+ * slot stays mounted); tab sources share a source rail, while ordinary groups
+ * remain visible below the selected tab. Groups render under localized title
  * rows. A pending group keeps showing the items it already had (the reducer
  * retains them across a query refinement) and falls back to two skeleton
  * rows only while it has none; pointer picks route back through
@@ -36,7 +37,7 @@ function optionId(source: string, index: number): string {
  * @param props - injected face (the menu store and the pick route); `t` rides the standard locale seat.
  * @returns the dropdown while open; null while closed.
  */
-export function MenuView({ menu, headers, onPick, onCrumb, onHover, onDismiss, t }: MenuViewProps) {
+export function MenuView({ menu, headers, onPick, onCrumb, onHover, onActivateTab, onDismiss, t }: MenuViewProps) {
   const state = useSyncExternalStore(
     fn => menu.subscribe(fn),
     () => menu.getSnapshot(),
@@ -83,6 +84,9 @@ export function MenuView({ menu, headers, onPick, onCrumb, onHover, onDismiss, t
     return () => { document.removeEventListener('pointerdown', onPointerDown, true) }
   }, [state.open, onDismiss])
   if (!state.open) return null
+  const tabGroups = state.groups.filter(group => group.menuTab === true)
+  const visibleGroups = state.groups.filter(group => group.menuTab !== true || group.source === state.activeTab)
+  const activeTabGroup = tabGroups.find(group => group.source === state.activeTab)
   return (
     // The listbox role sits on the scrolling viewport, not this shell: a
     // breadcrumb header is not an option, and a listbox may not carry one.
@@ -93,7 +97,30 @@ export function MenuView({ menu, headers, onPick, onCrumb, onHover, onDismiss, t
       data-trigger-menu=""
       data-overflow-below={hasOverflowBelow || undefined}
     >
-      {state.groups.map((group) => {
+      {tabGroups.length > 1 && (
+        <div className={css.tabRail} role="tablist" aria-label={t('tabs.aria')}>
+          {tabGroups.map((group) => {
+            const selected = group.source === state.activeTab
+            return (
+              <button
+                key={group.source}
+                type="button"
+                role="tab"
+                aria-selected={selected}
+                className={clsx(css.tab, selected && css.tabActive)}
+                onMouseDown={(ev) => {
+                  ev.preventDefault()
+                  onActivateTab(group.source)
+                }}
+              >
+                <span>{t(group.source as MenuKey)}</span>
+                {group.status === 'ready' && <span className={css.tabCount}>{group.items.length}</span>}
+              </button>
+            )
+          })}
+        </div>
+      )}
+      {visibleGroups.map((group) => {
         const trail = crumbs.get(group.source)
         return trail === undefined ? null : (
           <nav key={group.source} className={css.crumbs} aria-label={t('crumbs.aria')}>
@@ -126,7 +153,7 @@ export function MenuView({ menu, headers, onPick, onCrumb, onHover, onDismiss, t
         aria-activedescendant={highlight !== null ? optionId(highlight.source, highlight.index) : undefined}
         onScroll={updateOverflowHint}
       >
-        {state.groups.map(group => (group.status === 'ready' && group.items.length === 0)
+        {visibleGroups.map(group => (group.status === 'ready' && group.items.length === 0)
           ? null
           : (
             <Fragment key={group.source}>
@@ -208,6 +235,9 @@ export function MenuView({ menu, headers, onPick, onCrumb, onHover, onDismiss, t
                 })}
             </Fragment>
           ))}
+        {activeTabGroup?.status === 'ready' && activeTabGroup.items.length === 0
+          ? <div className={css.empty} role="status">{t('empty')}</div>
+          : null}
       </div>
     </div>
   )

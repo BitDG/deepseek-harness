@@ -14,10 +14,10 @@
  * track but hides the outer resize handle. Everything arrives through the framework
  * shares — zero cordis or framework imports, zero self-made hooks.
  */
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type {
-  PropsLocale, PropsRenderSlots, PropsRuntime, PropsStore,
+  PropsLocale, PropsRenderSlots, PropsRenderFactories, PropsRuntime, PropsStore,
 } from '@deepseek-ai/dsh-client-ui-slots'
 import { computeColumns, RIGHTBAR_DEFAULT_RATIO, SIDEBAR_AUTO_COLLAPSE, SIDEBAR_COLLAPSED, SIDEBAR_DEFAULT } from './columns.ts'
 import { DocumentTitle } from './DocumentTitle.tsx'
@@ -27,19 +27,14 @@ import css from './AppFrame.module.css'
 /** Full composed props: runtime share + child-slot render share + store share. */
 export type AppFrameProps =
   & PropsRuntime<'root'>
-  & PropsRenderSlots<'sidebar' | 'main' | 'rightbar' | 'shell.overlay'>
+  & PropsRenderSlots<'shell.presentation'>
+  & PropsRenderFactories
   & PropsStore<ReturnType<typeof createLayoutStore>>
   & PropsLocale<'common'>
 
 /** Center column grid item (session-body building block). */
 function CenterColumn(props: { children?: ReactNode }) {
   return <div className={css.centerCol}>{props.children}</div>
-}
-
-/** Subscribe to the main key without subscribing the column frame to each panel id. */
-function MainPanel({ usePanelInfo, renderSlot }: Pick<PropsRuntime<'root'>, 'usePanelInfo'> & PropsRenderSlots<'main'>) {
-  const panelId = usePanelInfo(info => info.activePanelId)
-  return renderSlot('main', {}, { entryKey: panelId ?? 'conversation' })
 }
 
 /**
@@ -124,6 +119,7 @@ export function AppFrame({
   usePanelInfo,
   actions,
   renderSlot,
+  renderFactorySlot,
   t,
 }: AppFrameProps) {
   const layoutInfo = useStore(state => state.layoutInfo)
@@ -193,14 +189,14 @@ export function AppFrame({
     actions.setRightbar(rightbarBase.current - dx)
   }, [actions])
   const productTitle = process.env.DSH_CLIENT_TITLE ?? t('brand.localBuild')
-  const sidebar = useMemo(() => renderSlot('sidebar', {
-    collapsed: sidebarCollapsed,
-    width: cols.sidebar,
-  }), [renderSlot, sidebarCollapsed, cols.sidebar])
-  const main = useMemo(() => (
-    <MainPanel usePanelInfo={usePanelInfo} renderSlot={renderSlot} />
-  ), [usePanelInfo, renderSlot])
-  const overlays = useMemo(() => renderSlot('shell.overlay', {}), [renderSlot])
+  const geometry = {
+    sidebar: { collapsed: sidebarCollapsed, width: cols.sidebar },
+    rightbar: { width: normal.rightbar, viewportWidth: viewport, canShow: normal.rightbar > 0 },
+  }
+  const sidebar = renderFactorySlot('shell.native', { ...geometry, surface: 'sidebar' })
+  const main = renderFactorySlot('shell.native', { ...geometry, surface: 'main' })
+  const rightbar = renderFactorySlot('shell.native', { ...geometry, surface: 'rightbar' })
+  const overlays = renderFactorySlot('shell.native', { ...geometry, surface: 'overlays' })
 
   return (
     <div
@@ -223,23 +219,25 @@ export function AppFrame({
         useSessions={useSessions}
         usePanelInfo={usePanelInfo}
       />
-      <div className={css.sidebarCol}>
-        {sidebar}
-      </div>
-      <>
-        <CenterColumn>{main}</CenterColumn>
-        <RightbarColumn>
-          {renderSlot('rightbar', { width: normal.rightbar, viewportWidth: viewport, canShow: normal.rightbar > 0 })}
-        </RightbarColumn>
-      </>
-      <div className={css.overlayLayer} data-shell-overlay>
-        {overlays}
-      </div>
-      {/* The collapsed rail is fixed-width: no resize handle while closed. */}
-      {!sidebarCollapsed && <DragHandle side="sidebar" left={cols.sidebar} onStart={onSidebarStart} onDrag={onSidebarDrag} onEnd={onDragEnd} />}
-      {layoutInfo.rightbarShown && !layoutInfo.rightbarFullscreen && normal.rightbar > 0 && (
-        <DragHandle side="rightbar" left={viewport - normal.rightbar} onStart={onRightbarStart} onDrag={onRightbarDrag} onEnd={onDragEnd} />
-      )}
+      {renderSlot('shell.presentation', geometry, { fallback: <>
+        <div className={css.sidebarCol}>
+          {sidebar}
+        </div>
+        <>
+          <CenterColumn>{main}</CenterColumn>
+          <RightbarColumn>
+            {rightbar}
+          </RightbarColumn>
+        </>
+        <div className={css.overlayLayer} data-shell-overlay>
+          {overlays}
+        </div>
+        {/* The collapsed rail is fixed-width: no resize handle while closed. */}
+        {!sidebarCollapsed && <DragHandle side="sidebar" left={cols.sidebar} onStart={onSidebarStart} onDrag={onSidebarDrag} onEnd={onDragEnd} />}
+        {layoutInfo.rightbarShown && !layoutInfo.rightbarFullscreen && normal.rightbar > 0 && (
+          <DragHandle side="rightbar" left={viewport - normal.rightbar} onStart={onRightbarStart} onDrag={onRightbarDrag} onEnd={onDragEnd} />
+        )}
+      </> })}
     </div>
   )
 }

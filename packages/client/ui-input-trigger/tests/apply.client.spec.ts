@@ -54,6 +54,8 @@ describe('apply', () => {
     const { ctx, locale } = await bench()
     await ctx.plugin({ inject: [...inject], apply }).await()
     const t = locale.bind('slash.menu')
+    expect(t('reference')).toBe('文件')
+    expect(t('tabs.aria')).toBe('引用来源')
     expect(t('command')).toBe('指令')
     locale.setLocale('en')
     expect(t('skill')).toBe('Skills')
@@ -94,6 +96,9 @@ describe('apply', () => {
     expect(controller.menu.getSnapshot().open).toBe(false)
     // The hover face routes into the controller too (closed menu → no-op).
     injected.onHover('command', 0)
+    expect(controller.menu.getSnapshot().open).toBe(false)
+    // The tab face routes into the controller too (closed menu -> no-op).
+    injected.onActivateTab('command')
     expect(controller.menu.getSnapshot().open).toBe(false)
     // The dismiss face routes into the controller too (closed menu → no-op).
     injected.onDismiss()

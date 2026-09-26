@@ -24,6 +24,8 @@ export interface MenuViewInjected {
    * @param index - candidate index within the group.
    */
   onHover: (source: string, index: number) => void
+  /** Select one source-tab pane without moving focus out of the composer. */
+  onActivateTab: (source: string) => void
   /**
    * Pointer pick on one header crumb, routed back through the source's drill path.
    * @param source - source (group) name.

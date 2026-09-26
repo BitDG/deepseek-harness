@@ -17,7 +17,14 @@ import type { InputTriggerCandidate, InputTriggerSource } from '../types.ts'
 import type { ExactMatch, MenuReduce, MenuState } from './contract.ts'
 
 /** Closed rest state with generation 0; store initializer and test seed. */
-export const MENU_CLOSED: MenuState = { open: false, hit: null, generation: 0, groups: [], highlight: null }
+export const MENU_CLOSED: MenuState = {
+  open: false,
+  hit: null,
+  generation: 0,
+  groups: [],
+  activeTab: null,
+  highlight: null,
+}
 
 /**
  * Replace the group roster with pending groups for `sources`, in order.
@@ -29,25 +36,33 @@ export const MENU_CLOSED: MenuState = { open: false, hit: null, generation: 0, g
  */
 export function seedGroups(
   state: MenuState,
-  sources: readonly Pick<InputTriggerSource, 'name' | 'showGroupTitle'>[],
+  sources: readonly Pick<InputTriggerSource, 'name' | 'showGroupTitle' | 'menuTab'>[],
 ): MenuState {
+  const activeTab = sources.find(source => source.menuTab === true)?.name ?? null
   return {
     ...state,
     groups: sources.map(source => ({
       source: source.name,
+      ...(source.menuTab === true ? { menuTab: true } : {}),
       ...(source.showGroupTitle === false ? { showGroupTitle: false } : {}),
       status: 'pending',
       items: [],
     })),
+    activeTab,
     highlight: null,
   }
 }
 
 /** Close, preserving the generation so in-flight settlements stay droppable. */
 const closed = (state: MenuState): MenuState =>
-  state.open || state.hit !== null || state.groups.length > 0 || state.highlight !== null
-    ? { open: false, hit: null, generation: state.generation, groups: [], highlight: null }
+  state.open || state.hit !== null || state.groups.length > 0 || state.activeTab !== null || state.highlight !== null
+    ? { open: false, hit: null, generation: state.generation, groups: [], activeTab: null, highlight: null }
     : state
+
+/** Groups rendered in the active pane: every ordinary group plus the selected tab group. */
+function visibleGroups(state: Pick<MenuState, 'groups' | 'activeTab'>): MenuState['groups'] {
+  return state.groups.filter(group => group.menuTab !== true || group.source === state.activeTab)
+}
 
 /** First item of the first non-empty ready group, or null. */
 function firstHighlight(groups: MenuState['groups']): MenuState['highlight'] {
@@ -105,6 +120,7 @@ export const menuReduce: MenuReduce = (state, ev) => {
         // generation replaces the items and revalidates the highlight
         // wholesale. Pending status still fences picks off the stale rows.
         groups: state.groups.map(g => ({ ...g, status: 'pending' })),
+        activeTab: state.activeTab,
         highlight: state.highlight,
       }
     }
@@ -116,7 +132,8 @@ export const menuReduce: MenuReduce = (state, ev) => {
       const groups = state.groups.map((g, i) =>
         i === idx ? { ...g, status: 'ready' as const, items } : g)
       if (allReadyEmpty(groups)) return closed(state)
-      const highlight = validHighlight(state.highlight, groups) ?? firstHighlight(groups)
+      const visible = visibleGroups({ groups, activeTab: state.activeTab })
+      const highlight = validHighlight(state.highlight, visible) ?? firstHighlight(visible)
       return { ...state, groups, highlight }
     }
     case 'source-failed': {
@@ -124,12 +141,16 @@ export const menuReduce: MenuReduce = (state, ev) => {
       if (!state.groups.some(g => g.source === ev.source)) return state
       const groups = state.groups.filter(g => g.source !== ev.source)
       if (groups.length === 0 || allReadyEmpty(groups)) return closed(state)
-      const highlight = validHighlight(state.highlight, groups) ?? firstHighlight(groups)
-      return { ...state, groups, highlight }
+      const activeTab = state.activeTab === ev.source
+        ? groups.find(group => group.menuTab === true)?.source ?? null
+        : state.activeTab
+      const visible = visibleGroups({ groups, activeTab })
+      const highlight = validHighlight(state.highlight, visible) ?? firstHighlight(visible)
+      return { ...state, groups, activeTab, highlight }
     }
     case 'move': {
       if (!state.open) return state
-      const pos = positions(state.groups)
+      const pos = positions(visibleGroups(state))
       if (pos.length === 0) return state
       const hl = state.highlight
       const at = hl ? pos.findIndex(p => p.source === hl.source && p.index === hl.index) : -1
@@ -142,11 +163,22 @@ export const menuReduce: MenuReduce = (state, ev) => {
     }
     case 'hover': {
       if (!state.open) return state
-      const target = validHighlight({ source: ev.source, index: ev.index }, state.groups)
+      const target = validHighlight({ source: ev.source, index: ev.index }, visibleGroups(state))
       if (target === null) return state
       const hl = state.highlight
       if (hl && hl.source === target.source && hl.index === target.index) return state
       return { ...state, highlight: target }
+    }
+    case 'activate-tab': {
+      if (!state.open || state.activeTab === ev.source) return state
+      const group = state.groups.find(candidate => candidate.source === ev.source && candidate.menuTab === true)
+      if (group === undefined) return state
+      const activeTab = group.source
+      return {
+        ...state,
+        activeTab,
+        highlight: firstHighlight(visibleGroups({ groups: state.groups, activeTab })),
+      }
     }
     case 'close':
       return closed(state)

@@ -79,6 +79,7 @@ export function apply(ctx: ClientContext): void {
           onPick: (source, index, action) => { controller.pick(source, index, action) },
           onCrumb: (source, index) => { controller.pickCrumb(source, index) },
           onHover: (source, index) => { controller.hover(source, index) },
+          onActivateTab: (source) => { controller.activateTab(source) },
           onDismiss: () => { controller.dismiss() },
         }
       },

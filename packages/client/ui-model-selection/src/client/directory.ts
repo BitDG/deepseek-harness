@@ -74,7 +74,7 @@ export class ModelDirectory {
    */
   async load(): Promise<ModelDirectoryState> {
     this.assertAvailable()
-    await this.catalog.load()
+    await this.catalog.reload()
     this.syncInputs()
     return this.store.getSnapshot()
   }

@@ -106,10 +106,10 @@ Renderer 还会根据声明的 store 创建 `useStore`，并根据声明的 loca
 
 ## 当前层级
 
-下图是当前发布组合的声明树。只有具名 parent entry 已挂载时，其 child 才存在；因此可选功能 entry 可以作为一个生命周期单元让整棵子树出现或消失。
+root 声明可选的 `shell.presentation` slot。默认外框和替代外框均通过 `shell.native` 工厂渲染原生列，工厂持有下图四个顶层声明。每个外框各渲染一次原生列。其他 child 仅在其声明 entry 生效时存在；释放该 entry 会移除其子树。
 
 ```text
-root
+shell.native (factory)
 ├─ sidebar
 │  ├─ sidebar.brand.mark
 │  ├─ sidebar.brand.name

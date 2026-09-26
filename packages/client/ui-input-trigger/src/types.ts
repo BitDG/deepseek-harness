@@ -165,6 +165,8 @@ export interface InputTriggerSource {
   readonly order?: number
   /** Whether the menu renders the source-title row; defaults to true. */
   readonly showGroupTitle?: boolean
+  /** Show this source in the @ menu's tab rail; ordinary groups stay visible below the selected tab. */
+  readonly menuTab?: boolean
   candidates(session: ClientSessionContext, req: CandidateRequest): Promise<readonly InputTriggerCandidate[]>
   /**
    * Synchronous breadcrumb rendered above this source's group, re-polled on

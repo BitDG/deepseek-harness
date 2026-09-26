@@ -35,7 +35,9 @@ export class ModelCatalogDirectory {
    */
   load(): Promise<ModelCatalog> {
     const state = this.store.getSnapshot()
-    if (state.status === 'ready' && state.value !== null) return Promise.resolve(state.value)
+    if (state.status === 'ready' && state.value !== null && state.value.groups.length > 0) {
+      return Promise.resolve(state.value)
+    }
     if (this.inflight !== undefined) return this.inflight
     const generation = this.generation
     this.store.update((draft) => {
@@ -63,6 +65,18 @@ export class ModelCatalogDirectory {
     })
     this.inflight = operation
     return operation
+  }
+
+  /**
+   * Reload the catalog for an explicit selector read, sharing any active RPC.
+   * @returns the current Host catalog after the refresh.
+   */
+  reload(): Promise<ModelCatalog> {
+    if (this.inflight !== undefined) {
+      return this.inflight.then(value => value.groups.length > 0 ? value : this.reload())
+    }
+    this.invalidate()
+    return this.load()
   }
 
   /**

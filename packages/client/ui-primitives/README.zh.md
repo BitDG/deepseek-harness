@@ -36,7 +36,7 @@ kind: "package-library"
 
 | 导出 | 是什么 |
 |---|---|
-| `Button` | 可点击操作；`variant` 选择 `primary`、`ghost`、`outline` 或 `toolbar`。 |
+| `Button` | 可点击操作；`variant` 选择中性 `primary`、品牌蓝 `accent`、`ghost`、`outline` 或 `toolbar`。 |
 | `Switch` | 36×20 的双态开关。`label` 必填，控件不可能在没有名称的情况下发布。 |
 | `Checkbox` | 带标签的原生复选框，支持受控状态、键盘交互和禁用样式；调用方提供本地化的 `label` 文本。 |
 | `Input` | 单行文本输入，用于搜索框与行内表单。 |

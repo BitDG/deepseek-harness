@@ -14,6 +14,10 @@ function open(sources: readonly string[], h: TriggerHit = hit()): MenuState {
   return menuReduce(seedGroups(MENU_CLOSED, sources.map(name => ({ name }))), { type: 'hit', hit: h })
 }
 
+function openTabs(sources: readonly string[]): MenuState {
+  return menuReduce(seedGroups(MENU_CLOSED, sources.map(name => ({ name, menuTab: true }))), { type: 'hit', hit: hit() })
+}
+
 const item = (name: string) => ({ name })
 
 /** Two ready groups: command [goal, model], skill [commit]. */
@@ -119,6 +123,36 @@ describe('menuReduce source-settled', () => {
     s = menuReduce(s, { type: 'source-settled', generation: 1, source: 'skill', items: [item('commit')] })
     expect(s.open).toBe(true)
     expect(s.highlight).toEqual({ source: 'skill', index: 0 })
+  })
+})
+
+describe('menuReduce source tabs', () => {
+  it('selects the first tab and highlights only its visible rows', () => {
+    let s = openTabs(['reference', 'CodePen', 'GitHub'])
+    expect(s.activeTab).toBe('reference')
+    s = menuReduce(s, { type: 'source-settled', generation: 1, source: 'GitHub', items: [item('repo')] })
+    expect(s.highlight).toBeNull()
+    s = menuReduce(s, { type: 'source-settled', generation: 1, source: 'reference', items: [item('README.md')] })
+    expect(s.highlight).toEqual({ source: 'reference', index: 0 })
+  })
+
+  it('switches panes, resets the highlight, and ignores unknown or ordinary groups', () => {
+    let s = openTabs(['reference', 'GitHub'])
+    s = menuReduce(s, { type: 'source-settled', generation: 1, source: 'reference', items: [item('README.md')] })
+    s = menuReduce(s, { type: 'source-settled', generation: 1, source: 'GitHub', items: [item('repo')] })
+    s = menuReduce(s, { type: 'activate-tab', source: 'GitHub' })
+    expect(s.activeTab).toBe('GitHub')
+    expect(s.highlight).toEqual({ source: 'GitHub', index: 0 })
+    expect(menuReduce(s, { type: 'activate-tab', source: 'GitHub' })).toBe(s)
+    expect(menuReduce(s, { type: 'activate-tab', source: 'ghost' })).toBe(s)
+  })
+
+  it('falls forward to the next tab when the active source fails', () => {
+    let s = openTabs(['reference', 'GitHub'])
+    s = menuReduce(s, { type: 'source-settled', generation: 1, source: 'GitHub', items: [item('repo')] })
+    s = menuReduce(s, { type: 'source-failed', generation: 1, source: 'reference' })
+    expect(s.activeTab).toBe('GitHub')
+    expect(s.highlight).toEqual({ source: 'GitHub', index: 0 })
   })
 })
 

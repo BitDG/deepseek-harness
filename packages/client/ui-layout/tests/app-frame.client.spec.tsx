@@ -1,12 +1,13 @@
 // @vitest-environment jsdom
 /** Frame interactions with a real store and explicitly driven browser measurements. */
-import type { GlobalStandardProps, RenderOpts } from '@deepseek-ai/dsh-client-ui-slots'
+import type { GlobalStandardProps, RenderOpts, FactoryComponentPropsOf, PropsRenderSlots } from '@deepseek-ai/dsh-client-ui-slots'
 import { bindSnapshotSelector } from '@deepseek-ai/dsh-client-test-runtime'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, render } from '@testing-library/react'
+import { NativeSurface } from '../src/client/NativeSurface.tsx'
 import { AppFrame } from '../src/client/AppFrame.tsx'
 import type { AppFrameProps } from '../src/client/AppFrame.tsx'
-import type { MainPanelId, RightbarOwnerProps, SidebarOwnerProps } from '../src/client/index.ts'
+import type { MainPanelId, RightbarOwnerProps, SidebarOwnerProps, ShellPresentationProps } from '../src/client/index.ts'
 import { createLayoutStore } from '../src/client/stores.ts'
 import type { WorkspaceSnapshot } from '@deepseek-ai/dsh-api-workspace-controller/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
@@ -60,12 +61,19 @@ function resize(width: number): void {
   })
 }
 
-function mountFrame(windowWidth = frameWidth) {
+function mountFrame(windowWidth = frameWidth, presentation = false) {
   vi.stubGlobal('innerWidth', windowWidth)
   const instance = createLayoutStore().create()
   const slotCalls: { key: string; props: object; options: RenderOpts | undefined }[] = []
+  const nativeSlots: PropsRenderSlots<'sidebar' | 'main' | 'rightbar' | 'shell.overlay'>['renderSlot'] = (key, props, options) => { slotCalls.push({ key, props, options }); return <div data-testid={`${key}-content`} data-entry-key={options?.entryKey} /> }
+  const renderFactorySlot: AppFrameProps['renderFactorySlot'] = (_name, props) => <NativeSurface {...(props as FactoryComponentPropsOf<'shell.native'>)} usePanelInfo={usePanelInfo} renderSlot={nativeSlots} />
   const renderSlot: AppFrameProps['renderSlot'] = (key, owner, options) => {
     slotCalls.push({ key, props: owner, options })
+    if (key === 'shell.presentation') {
+      if (!presentation) return options?.fallback
+      const surfaces = owner as unknown as ShellPresentationProps
+      return <section data-testid="custom-shell">{(['sidebar', 'main', 'rightbar', 'overlays'] as const).map(surface => <div key={surface}>{renderFactorySlot('shell.native', { ...surfaces, surface })}</div>)}</section>
+    }
     return <div data-testid={`${key}-content`} data-entry-key={options?.entryKey} />
   }
   const useSessions: AppFrameProps['useSessions'] = sel => sel({
@@ -94,6 +102,7 @@ function mountFrame(windowWidth = frameWidth) {
       useStore={useStore}
       actions={instance.actions}
       renderSlot={renderSlot}
+      renderFactorySlot={renderFactorySlot}
       useSessions={useSessions}
       usePanelInfo={usePanelInfo}
       useSessionStatus={useSessionStatus}
@@ -178,6 +187,17 @@ afterEach(() => {
 })
 
 describe('AppFrame', () => {
+  it('passes each native surface once to an optional shell and retains main-panel selection', () => {
+    const { getByTestId, queryAllByTestId, frame, instance } = mountFrame(1920, true)
+    expect(getByTestId('custom-shell')).toBeTruthy()
+    for (const slot of ['sidebar', 'main', 'rightbar', 'shell.overlay']) {
+      expect(queryAllByTestId(`${slot}-content`)).toHaveLength(1)
+    }
+    expect(frame.querySelector('[data-side]')).toBeNull()
+    expect(getByTestId('main-content').getAttribute('data-entry-key')).toBe('conversation')
+    act(() => { instance.actions.selectPanel('library' as MainPanelId) })
+    expect(getByTestId('main-content').getAttribute('data-entry-key')).toBe('library')
+  })
   it('localizes the product title without a configured build title', () => {
     mountFrame()
     expect(document.title).toBe('DSH Local Build')

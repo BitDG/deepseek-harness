@@ -253,6 +253,15 @@ export class InputTriggerController {
   }
 
   /**
+   * Select one source-tab pane while preserving the active trigger query.
+   * @param source - Registered tab-source name.
+   */
+  activateTab(source: string): void {
+    if (this.disposed) return
+    this.reduce({ type: 'activate-tab', source })
+  }
+
+  /**
    * Keyboard arbitration while the menu is open.
    * @param key - intercepted key.
    * @param composing - inside IME composition: everything passes.

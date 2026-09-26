@@ -16,6 +16,38 @@ function directory(models: () => Promise<unknown>): ModelCatalogDirectory {
 }
 
 describe('ModelCatalogDirectory', () => {
+  it('rechecks a ready empty catalog when a selector opens after providers register', async () => {
+    const empty = { ...catalog('missing'), routableProviders: [], groups: [] }
+    const models = vi.fn()
+      .mockResolvedValueOnce({ ok: true, value: empty })
+      .mockResolvedValueOnce({ ok: true, value: catalog('available') })
+    const subject = directory(models)
+
+    await expect(subject.load()).resolves.toEqual(empty)
+    await expect(subject.load()).resolves.toEqual(catalog('available'))
+    expect(subject.store.getSnapshot()).toEqual({
+      value: catalog('available'), status: 'ready', error: null,
+    })
+    expect(models).toHaveBeenCalledTimes(2)
+  })
+
+  it('refreshes a ready catalog for an explicit selector read and shares concurrent reloads', async () => {
+    const refreshed = Promise.withResolvers<unknown>()
+    const models = vi.fn()
+      .mockResolvedValueOnce({ ok: true, value: catalog('initial') })
+      .mockReturnValueOnce(refreshed.promise)
+    const subject = directory(models)
+    await subject.load()
+
+    const first = subject.reload()
+    const second = subject.reload()
+    expect(models).toHaveBeenCalledTimes(2)
+    refreshed.resolve({ ok: true, value: catalog('refreshed') })
+    await expect(Promise.all([first, second])).resolves.toEqual([
+      catalog('refreshed'), catalog('refreshed'),
+    ])
+  })
+
   it('shares one failing request, exposes the RPC error, and permits a retry', async () => {
     const models = vi.fn()
       .mockResolvedValueOnce({

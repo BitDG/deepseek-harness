@@ -138,7 +138,7 @@ describe('apply', () => {
     ctx.provide('sessions', { list: { getSnapshot: () => ({ byId: {} }) } })
     const ownFiber = ctx.plugin({ inject: [...inject], apply })
     await ownFiber.await()
-    expect(registered).toMatchObject({ trigger: '@', name: 'reference', showGroupTitle: false })
+    expect(registered).toMatchObject({ trigger: '@', name: 'reference', menuTab: true, showGroupTitle: false })
     await ownFiber.dispose()
     expect(registered).toBeUndefined()
     await fiber.dispose()

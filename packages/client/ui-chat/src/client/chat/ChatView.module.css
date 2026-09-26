@@ -57,6 +57,13 @@
   min-width: 0;
 }
 
+/* Consecutive context rows form one injected-input group. Keep the ordinary
+   flow gap before and after that group, but use the tight spacing scale within it. */
+.flowItem[data-chat-flow-kind='context']
+  + .flowItem[data-chat-flow-kind='context'] {
+  --dsh-chat-flow-gap: 4px;
+}
+
 /* A closed process reads as one summary immediately followed by its answer.
    Expanded process rows return to the ordinary 16px rhythm. */
 .flowItem[data-turn-process-answer] {

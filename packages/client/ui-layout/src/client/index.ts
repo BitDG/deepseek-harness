@@ -1,7 +1,7 @@
 /**
- * Layout plugin, browser half: one register() call contributes AppFrame into
- * the runtime's built-in 'root' slot and, in the same breath, declares the
- * four child slots (declaration = exclusive render authority), seats the
+ * Layout plugin, browser half: AppFrame owns the optional shell presentation;
+ * the native-column factory owns sidebar, main, rightbar and overlay slots.
+ * This plugin seats the
  * layout store (panel geometry), and wires the panel-action service face.
  * ctx.layout selects the main panel and controls column geometry; Session
  * selection belongs to the Session Controller. A second effect seats the theme
@@ -14,6 +14,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-session/client'
 import type {} from '@deepseek-ai/dsh-client-ui-theme/client'
 import type { HostObservable, SnapshotSelectorHook } from '@deepseek-ai/dsh-client-ui-slots'
 import type { PanelInfo } from './service.ts'
+import { NativeSurface } from './NativeSurface.tsx'
 import { AppFrame } from './AppFrame.tsx'
 import { createLayoutStore } from './stores.ts'
 import { LayoutController } from './service.ts'
@@ -43,10 +44,25 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
     usePanelInfo: UsePanelInfo
   }
 
+  interface SlotFactoryMap {
+    /** Independently placed native columns; all slot ownership stays with this factory. */
+    'shell.native': {
+      scope: 'root'
+      props: ShellPresentationProps & { surface: 'sidebar' | 'main' | 'rightbar' | 'overlays' }
+      children: {
+        sidebar: { kind: 'single'; scope: 'root' }
+        main: { kind: 'keyed'; scope: 'root' }
+        rightbar: { kind: 'single'; scope: 'root' }
+        'shell.overlay': { kind: 'list'; scope: 'root' }
+      }
+    }
+  }
+
   interface SlotMap {
+    /** Optional shell presentation; places native columns through the shell.native factory. */
+    'shell.presentation': { kind: 'single'; scope: 'root'; owner: ShellPresentationProps }
     // The 'root' entry itself is the runtime's built-in slot (declared
-    // there); these four are the frame's children, declared by the same
-    // register() call that contributes AppFrame. Session owners never pass
+    // there); shell.native owns the following four slots. Session owners never pass
     // sessionId: the framework injects it as a standard prop.
     /**
      * The whole left column. OCCUPIED by ui-sidebar's SidebarRoot, which
@@ -92,6 +108,14 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
   }
 }
 
+/** Geometry offered to an alternative shell; native content renders through `shell.native`. */
+export interface ShellPresentationProps {
+  /** Native sidebar geometry. */
+  sidebar: SidebarOwnerProps
+  /** Native right-panel geometry and opening eligibility. */
+  rightbar: RightbarOwnerProps
+}
+
 // OwnerShare contracts — the render-side share the slot owner supplies at
 // renderSlot. Registrants IMPORT these and compose their full component props
 // from the framework-derived shares. Conversation business state and actions arrive through
@@ -123,7 +147,7 @@ export const inject = ['slots', 'theme', 'locale']
 
 /**
  * Client plugin body: provide ctx.layout, then one register() call — AppFrame
- * into 'root' with the four child-slot declarations, the layout store seat,
+ * into 'root' with the presentation slot, native factory, and layout store seat,
  * and the shared root instance supplying commands and the panel-info source.
  * @param ctx - client root context.
  */
@@ -144,14 +168,21 @@ export function apply(ctx: ClientContext): void {
     }
     const disposePanelInfo = ctx.slots.provideRoot({ hooks: { panelInfo } })
     const disposeService = ctx.reflect.provide('layout', layout)
+    const disposeNative = ctx.slots.registerFactory({
+      name: 'shell.native',
+      scope: 'root',
+      children: {
+        sidebar: { kind: 'single', scope: 'root' },
+        main: { kind: 'keyed', scope: 'root' },
+        rightbar: { kind: 'single', scope: 'root' },
+        'shell.overlay': { kind: 'list', scope: 'root' },
+      },
+    }, NativeSurface)
     const disposeRegistration = ctx.slots.register({
       name: 'root',
       locale: 'common',
       children: {
-        'sidebar': { kind: 'single', scope: 'root' },
-        'main': { kind: 'keyed', scope: 'root' },
-        'rightbar': { kind: 'single', scope: 'root' },
-        'shell.overlay': { kind: 'list', scope: 'root' },
+        'shell.presentation': { kind: 'single', scope: 'root' },
       },
       store,
     }, AppFrame)
@@ -161,6 +192,7 @@ export function apply(ctx: ClientContext): void {
       layout.dispose()
       disposePanels()
       disposeRegistration()
+      disposeNative()
       disposePanelInfo()
       // provide()'s disposer settles asynchronously; teardown is synchronous fire-and-forget.
       void disposeService()

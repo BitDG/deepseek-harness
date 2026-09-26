@@ -10,6 +10,22 @@ This reference defines styling ownership and component rules for browser client 
 
 Global style sheets belong in `ui-theme/src/styles/`. Component styles live beside their component as CSS Modules. A component may define a local custom property when its value is part of that component's layout or presentation contract; shared colors, typography, elevation, and motion belong to the theme package.
 
+## Personal workbench baseline
+
+The personal workbench keeps navigation, collections, item lists, and content in stable adjacent regions. New client plugins reuse the shell layout and shared controls; a feature may add a column or panel through its owning slot without defining another application frame.
+
+The visual reference is `outputs/dsh-personal-workbench-prototype.html`. Its sample data and simulated integrations demonstrate the layout; the theme tokens and component rules in this document govern implementation.
+
+- Use neutral document and surface tokens for reading and editing. Selected navigation rows and content tabs use soft-blue fill and blue text; the compact Tasks/Files/Git segmented switch keeps a white active segment with dark text for clear contrast. Use the stronger brand-blue accent for one explicit primary action in a region, not for every control. Reserve success color for a completed save, connection, or update rather than an unverified preview.
+- Size and round controls by role: navigation rows, standard list rows and controls, compact tree rows and icon buttons, content surfaces, and dialogs each share one geometry rule across feature views. Use a shared spacing scale for adjacent columns and control groups; spreadsheet cells and reading content retain their task-specific dimensions.
+- Center titles, tabs, and icon controls within the same header height. Leave a consistent gap between the header separator and the first selectable row so its selection background remains distinct from the line.
+- Bordered text inputs show focus through their own blue border without an additional outer halo; keyboard focus remains visible on borderless controls.
+- Use the shared `Button` `accent` variant for that explicit action; use `outline` for secondary actions and `ghost` for quiet icon controls. Selected, hover, active, disabled, loading, and focus states remain distinguishable without relying on color alone.
+- Keep reading content visible until a person explicitly opens AI assistance. Closing the assistant preserves the selected source and scroll position. Utility content such as audio opens from its utility control instead of taking a permanent navigation row.
+- File and external-data views label their source and distinguish an editable draft, a saved local state, and a completed remote operation. A preview control never reports a real save or update.
+- Knowledge views show the selected vault, folder, and note before its body; imported Obsidian Markdown stays read-only unless a write capability is explicitly available. Spreadsheet views identify the branch, folder, file, and sheet, and keep cell editing separate from SVN refresh.
+- Transient panels and dialogs close with Escape and return focus to their trigger. Dense lists preserve keyboard focus visibility, while motion respects reduced-motion preference.
+
 ## Component rules
 
 - Reuse the control before restyling one: the [ui-primitives component catalog](../packages/client/ui-primitives/README.md#component-catalog) is the only channel that crosses feature packages, and a deliberate visual difference belongs in a prop there rather than in a second copy ([decision](../.agents/notes/implemented/architecture/2026-09-05-shared-client-control-primitives.md)).

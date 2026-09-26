@@ -27,6 +27,8 @@ Use `dsh-client-ui-reference` when Web users need to mention files, folders, or 
 
 The source is active whenever the composition mounts this package and a Host `ctx.fileReferences` provider is available. Type `@` followed by an unquoted token to see files first, then sessions; open `@"…` to search files only. The candidate list is a completion menu, not a search result page: pick once and keep typing.
 
+The file and session candidates occupy the Files source tab when other `@` tab sources are installed.
+
 ### What a pick inserts
 
 A file closes completion as an atomic inline reference displayed with a file glyph and business-color filename. A directory row carries two verbs: the settling pick (row click or Enter) resolves the folder itself as the same kind of atomic reference — folder glyph, trailing-slash label, canonical `@dir/` mention as its serialized form — while the drill action (Tab or the row's chevron) keeps plain editable path text with a folder glyph and the menu active at its trailing slash, so you can descend another level. Paths containing whitespace use `@"path with spaces"`, and a quote the user opened explicitly remains quoted.

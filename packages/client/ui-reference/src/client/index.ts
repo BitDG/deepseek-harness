@@ -45,6 +45,7 @@ export function apply(ctx: ClientContext): void {
   const source: InputTriggerSource = {
     trigger: '@',
     name: 'reference',
+    menuTab: true,
     showGroupTitle: false,
     async candidates(session: ClientSessionContext, { query, quoted, drilled, signal }) {
       const fileLookup = ctx.remote.fileReferences.list(session.sessionId, query, signal)

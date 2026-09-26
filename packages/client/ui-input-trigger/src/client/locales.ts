@@ -6,6 +6,9 @@
 
 /** Simplified Chinese dictionary (the key-set source of truth). */
 export const zh = {
+  'reference': '文件',
+  'empty': '没有匹配的引用',
+  'tabs.aria': '引用来源',
   'command': '指令',
   'skill': '技能',
   'subagent': '子智能体',
@@ -22,6 +25,9 @@ export type MenuKey = keyof typeof zh
 
 /** English dictionary, checked complete against the zh key set. */
 export const en = {
+  'reference': 'Files',
+  'empty': 'No matching references',
+  'tabs.aria': 'Reference sources',
   'command': 'Commands',
   'skill': 'Skills',
   'subagent': 'Subagents',
