@@ -44,6 +44,15 @@ const NO_MODEL_EXPERIENCE_SECTION: Readonly<Record<string, string>> = {
  * blocks. A package moves on or off this list with its context behavior.
  */
 const SENTENCE_MODEL_EXPERIENCE: Readonly<Record<string, SentenceContract>> = {
+  'packages/api/teable-tasks': { kind: 'none', reason: 'The Host Remote reads Teable records only for browser users and adds no model input.' },
+  'packages/client/ui-teable-tasks': { kind: 'none', reason: 'The browser page displays and edits Teable records without adding model input.' },
+  'packages/bundle/teable-tasks': { kind: 'none', reason: 'The bundle inserts only the Host Remote and browser page.' },
+  'packages/bundle/dashboard': { kind: 'none', reason: 'The bundle inserts only browser UI rows and changes no model request.' },
+  'packages/client/ui-dashboard': { kind: 'none', reason: 'The browser dashboard registers only a page and card slot.' },
+  'packages/client/ui-dashboard-sessions': { kind: 'none', reason: 'The card reads Session metadata for the human and adds no model input.' },
+  'packages/client/ui-dashboard-hacker-news': { kind: 'none', reason: 'The card renders external headlines only in the browser and adds no model input.' },
+  'packages/client/ui-dashboard-community': { kind: 'none', reason: 'The cards render public feeds and local dates only in the browser and add no model input.' },
+  'packages/client/ui-dashboard-devices': { kind: 'none', reason: 'Device measurements render only in the browser and add no model input.' },
   'packages/api/terminal-controller': { kind: 'none', reason: 'User-owned terminal processes and screen streams never enter model requests or Session events.' },
   'packages/client/ui-sidebar-terminal': { kind: 'none', reason: 'The browser renders user terminal screens without exposing them to the model.' },
   'packages/ssh/ssh': { kind: 'none', reason: 'The connection owner transports private provider operations; consumers own all model-facing content.' },
@@ -129,6 +138,7 @@ const SENTENCE_MODEL_EXPERIENCE: Readonly<Record<string, SentenceContract>> = {
   'packages/client/resources': { kind: 'none', reason: 'Browser-side resource model (providers, pinning, useResource); registers nothing model-facing.' },
   'packages/client/ui-settings': { kind: 'none', reason: 'Browser-side UI plugin layer; registers nothing model-facing.' },
   'packages/client/ui-settings-general': { kind: 'none', reason: 'Browser-side UI plugin layer; registers nothing model-facing.' },
+  'packages/client/ui-design-system': { kind: 'none', reason: 'Browser-only component demonstrations; no tools, prompt content, model requests, or session events.' },
   'packages/client/ui-settings-models': { kind: 'none', reason: 'Browser-side UI plugin layer; registers nothing model-facing.' },
   'packages/client/ui-plugin-manager': { kind: 'none', reason: 'Browser-side management surface; registers nothing model-facing.' },
   'packages/client/ui-settings-plugin-inventory': { kind: 'none', reason: 'Browser-side inventory projection; registers nothing model-facing.' },

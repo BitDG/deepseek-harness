@@ -27,6 +27,9 @@
       "path": "../ui-dockkit"
     },
     {
+      "path": "../ui-conversation"
+    },
+    {
       "path": "../ui-primitives"
     },
     {
@@ -40,6 +43,9 @@
     },
     {
       "path": "../../util/workspace-path"
+    },
+    {
+      "path": "../../context/file-reference"
     },
     {
       "path": "../../api/workspace-files/tsconfig.client.json"

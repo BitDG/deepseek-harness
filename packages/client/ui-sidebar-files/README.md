@@ -1,5 +1,5 @@
 ---
-description: "The right Sidebar's file-tree tab type for the dsh web client: the session workspace root listed one level at a time over the wire, opening files into the Sidebar by resource address."
+description: "The right Sidebar's file-tree tab type for the dsh web client: list the Session workspace, preview files, add draft references, and confirm deletion."
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-The right Sidebar's navigator tab type: the session's workspace root as a tree, listed one level at a time over the wire, opening files into the Sidebar. It is a page type reached from the guide and claims no address; it opens files by address for the `dsh-resource://file` viewers to claim — nothing in `ui-sidebar-right` knows this package.
+The right Sidebar's navigator tab type: the session's workspace root as a tree, listed one level at a time over the wire. A file opens in the Sidebar on click; its right-click menu can add a reference to the conversation draft or delete the file after confirmation. The page type claims no address; it opens files by address for the `dsh-resource://file` viewers to claim.
 
 ## Table of Contents
 
@@ -38,10 +38,12 @@ The root is the session's working directory, read from `useSessions().byId[sessi
 | Entry type | Row |
 |---|---|
 | `directory` | Toggles; the level is fetched the first time it opens and kept while collapsed. |
-| `file` | Opens `dsh-resource://file/session/<sessionId>/<encoded path relative to the root>`, built by `fileAddressFor` from `@deepseek-ai/dsh-util-workspace-path` from the entry's absolute path and the tree's root, through `useTabInfo().tab.actions.openResource`, landing in the tab's own pane. |
+| `file` | Opens `dsh-resource://file/session/<sessionId>/<encoded path relative to the root>`, built by `fileAddressFor` from `@deepseek-ai/dsh-util-workspace-path` from the entry's absolute path and the tree's root, through `useTabInfo().tab.actions.openResource`, landing in the tab's own pane. Right-click opens Add to conversation and Delete. |
 | `other` | Shown greyed and not clickable, so the directory is reported whole. |
 
 A level cut by the endpoint's entry cap ends with a marker; an empty level says so; a level that failed shows one line per code — `workspace-file/not-found`, `outside-workspace`, `not-directory` — and the transport's own message otherwise. Reload drops every listed level and asks again for the expanded ones; collapsed levels are fetched again when they next open. A session without a working directory shows a single line instead of a tree.
+
+Add to conversation appends a structured `@file` reference to the current Session's unsent draft, preserving existing text and focusing the composer. Delete asks for confirmation, then sends the version from the directory listing to the Host. A changed file is refused as stale; a successful deletion refreshes its parent directory. Deletion is disabled for entries without a version, and errors remain visible in the dialog.
 
 State lives in the type's own store, bucketed by tab id: `root`, `levels` (loading / ready / failed per absolute path), `expanded`, and `scrollTop`, which the body tracks locally while scrolling and commits once when it unmounts. Because the store outlives the body, switching to another sidebar tab and back remounts the tree with its levels intact and its scroll offset restored. The owner's `signal` ends a bucket: on abort the tab is forgotten, and neither a listing that settles afterwards nor the unmount's offset commit writes anything.
 
@@ -57,7 +59,7 @@ None; directory listings travel over the Remote and assemble no model request.
 ## Known Limitations and Deferred Work
 
 <a id="known-limitations-and-deferred-work"></a>
-- **Listing only.** No search, artifact filter, drag-and-drop, rename, context menu, current-file highlight, or filesystem watching; a level changes only through reload.
+- **File actions only.** No search, artifact filter, drag-and-drop, rename, current-file highlight, or filesystem watching. Directory and other rows have no context menu; levels change through reload or successful deletion.
 - **One root.** The tree is rooted at the session's working directory; there is no way to browse above it, and the Host refuses paths outside the workspace root anyway.
 
 <a id="dev-note"></a>

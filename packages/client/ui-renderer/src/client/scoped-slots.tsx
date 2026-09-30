@@ -1264,7 +1264,7 @@ function renderChainResult(
   )
 }
 
-/** Root outlet: the shell's single ctx-level render entry — an unregistered 'root' is a boot-order failure, never a silent blank. */
+/** Root outlet: the shell's single ctx-level render entry. */
 function RootOutlet({ ownerProps }: { ownerProps: object }) {
   const host = useHost()
   useSyncExternalStore(
@@ -1272,12 +1272,31 @@ function RootOutlet({ ownerProps }: { ownerProps: object }) {
     () => host.getVersion('root'),
   )
   useLocaleRevision(host.locale)
+  const hadRoot = useRef(false)
   const entry = host.entriesOfSlot('root')[0]
+  const hasRootRegistration = host.entriesOf('root').length > 0
+  const missingRoot = entry === undefined && !hasRootRegistration
+  // Remember only committed roots; a failed first render is still a boot error.
+  useEffect(() => {
+    if (entry !== undefined) hadRoot.current = true
+  }, [entry])
+  useEffect(() => {
+    if (missingRoot && hadRoot.current) {
+      console.warn('[ui-renderer] root layout registration was removed; waiting for a replacement')
+    }
+  }, [missingRoot])
   if (!entry) {
     // Registrations exist but every one abdicated: the shadowing collapse ran
     // dry, so the crash face replaces the tree (registered-but-broken is a
     // crash, not the boot-order assembly failure below).
-    if (host.entriesOf('root').length > 0) return <div data-slot-error="root" />
+    if (hasRootRegistration) return <div data-slot-error="root" />
+    if (hadRoot.current) {
+      return (
+        <div data-slot-reloading="root" role="status" aria-busy="true">
+          {host.locale?.bind('common')('loading')}
+        </div>
+      )
+    }
     throw new SlotAssemblyError("renderSlot('root') before any 'root' registration (boot order)")
   }
   // Same anchor contract as SlotOutlet: 'root' is a slot like any other, and

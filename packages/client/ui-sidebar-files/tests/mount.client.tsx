@@ -53,6 +53,8 @@ export interface Mounted {
   readonly face: FilesInjected
   readonly controller: AbortController
   readonly tabActions: MockedTabActions
+  readonly addToConversation: Mock<FilesBodyProps['addToConversation']>
+  readonly removeFile: Mock<FilesBodyProps['removeFile']>
   /** Render a fresh body over the same store and face, as a tab switch remounts it. */
   readonly remount: () => RenderResult
 }
@@ -69,6 +71,8 @@ function harness(cwd: string | null) {
     close: vi.fn<SidebarRightTabActions['close']>(),
   }
   const sessions = { byId: cwd === null ? {} : { [SESSION]: { cwd } } } as unknown as SessionListState
+  const addToConversation = vi.fn<FilesBodyProps['addToConversation']>(() => true)
+  const removeFile = vi.fn<FilesBodyProps['removeFile']>(async () => ({ ok: true, value: undefined }))
   const shared = {
     // A page tab's address is the shell's to mint; the body never reads it.
     useTabInfo: () => ({
@@ -86,9 +90,11 @@ function harness(cwd: string | null) {
     useStore: hookOf(instance),
     actions: instance.actions,
     ...face,
+    addToConversation,
+    removeFile,
     t: makeTranslate(zh),
   }
-  return { instance, script, face, controller, tabActions, shared }
+  return { instance, script, face, controller, tabActions, addToConversation, removeFile, shared }
 }
 
 /**

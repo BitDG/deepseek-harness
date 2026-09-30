@@ -406,6 +406,19 @@ export class SessionInputShell implements SessionInput {
     return this.draftEditor.insertReference(span, ref, tail)
   }
 
+  /** Append a sidebar-selected reference after the current draft. */
+  appendReference(ref: ReferenceInsert): boolean {
+    if (this.core.state.phase !== 'plain' && this.core.state.phase !== 'claimed') return false
+    let end = this.projection.detectText.length
+    if (end > 0 && !/\s$/u.test(this.projection.detectText)) {
+      if (!this.draftEditor.replaceText({ start: end, end }, ' ')) return false
+      end = this.projection.detectText.length
+    }
+    const applied = this.insertReference(ref, { start: end, end, draftRev: this.rev })
+    if (applied) this.focus()
+    return applied
+  }
+
   /**
    * Consume one command token after business success (scoped consume-token
    * event listener body). Span guard: revision CAS then splice; bare-token

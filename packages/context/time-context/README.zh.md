@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-time-context` 给模型一只时钟：在符合条件的步骤上，它追加一条持久、带来源的读数，包含当前时间、附加到当前开放请求的浏览器时区，以及自前一条模型可见消息以来的经过时长。它帮助模型按用户的浏览器时区解释未明确限定时区的日期与时间；时区来源混杂或缺失时，它告诉模型去询问。本插件需主动启用：默认组合不启用它，Schedule Web overlay 会挂载它。正的 `refreshIntervalMs` 会减少读数累积的频率；省略或设为 `0` 时，每个符合条件的步骤都会注入。
+`dsh-time-context` 为模型提供时钟。`snapshot` 模式在符合条件的步骤追加持久读数，包含当前时间、浏览器时区和经过时长。`tool` 模式提供按需调用的 `current_time`，不自动注入上下文消息。浏览器时区明确时，两种模式都采用当前轮次的时区。
 
 ## 目录
 
@@ -45,6 +45,7 @@ kind: "package-reference"
 |---|---|---|
 | `timeZone` | 进程时区 | 当前开放轮次没有唯一浏览器时区时的显示回退时区 |
 | `refreshIntervalMs` | `0`（每个合格步骤） | 同一会话中两次持久注入之间的最小毫秒数 |
+| `mode` | `snapshot` | `tool` 注册 `current_time`，不再逐步注入时间读数 |
 
 生成的[配置目录](../../../docs/config-catalog.zh.md#deepseek-aidsh-time-context)是每个受支持字段及其 JSDoc 的穷尽式真源。
 
@@ -121,7 +122,7 @@ Elapsed since the preceding step context: <duration-or-unavailable>.
 
 #### Token 影响
 
-每个读数都会累积，直到压缩将其遮蔽。正数间隔会减少新增读数；省略或设为 `0` 时，每次合格的准备尝试都会添加一条。
+在 `snapshot` 模式下，每个读数都会累积，直到压缩将其遮蔽。正数间隔会减少新增读数；省略或设为 `0` 时，每次合格的准备尝试都会添加一条。在 `tool` 模式下，准备阶段不添加读数。`current_time` 的 schema 保持可见，调用结果作为普通工具历史记录。
 
 #### KV Cache 影响
 

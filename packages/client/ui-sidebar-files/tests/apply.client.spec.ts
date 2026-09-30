@@ -47,7 +47,10 @@ async function boot() {
       return () => { dictionaries.delete(ns) }
     }),
   }
-  const workspaceFiles = { list: vi.fn() }
+  const workspaceFiles = { list: vi.fn(), deleteFile: vi.fn() }
+  const appendReference = vi.fn(() => true)
+  ctx.provide('sessions', { scope: vi.fn(() => ({})) } as never)
+  ctx.provide('conversation', { input: { for: vi.fn(() => ({ appendReference })) } } as never)
   ctx.provide('sidebarRightTabs', tabs as never)
   ctx.provide('slots', slots as never)
   ctx.provide('locale', locale as never)
@@ -55,10 +58,27 @@ async function boot() {
   ctx.provide('remote.workspaceFiles', workspaceFiles as never)
   const fiber = ctx.plugin({ inject: [...inject], apply })
   await fiber.await()
-  return { tabs, registered, dictionaries, fiber }
+  return { tabs, registered, dictionaries, fiber, appendReference, workspaceFiles }
 }
 
 describe('ui-sidebar-files apply', () => {
+  it('uses the current session composer and workspace file Remote for row actions', async () => {
+    const { registered, appendReference, workspaceFiles } = await boot()
+    const makeFace = registered[0]?.inject as (...args: never[]) => {
+      addToConversation: (root: string, path: string, name: string) => boolean
+      removeFile: (path: string, version: string, signal: AbortSignal) => unknown
+    }
+    const face = makeFace('s1' as never, {} as never)
+    expect(face.addToConversation('/work', '/work/notes/test file.md', 'test file.md')).toBe(true)
+    expect(appendReference).toHaveBeenCalledWith({
+      source: 'reference', ref: '@"notes/test file.md"', label: 'test file.md',
+      appearance: 'file', clipboardText: '@"notes/test file.md"',
+    })
+    const signal = new AbortController().signal
+    face.removeFile('/work/notes/test file.md', 'v1', signal)
+    expect(workspaceFiles.deleteFile).toHaveBeenCalledWith('s1', '/work/notes/test file.md', 'v1', signal)
+  })
+
   it('keeps the host Loader entry inert', () => {
     expect(hostApply).not.toThrow()
   })

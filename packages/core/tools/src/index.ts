@@ -12,6 +12,7 @@ import type { ToolCallId, ContentBlock, ToolSchema } from '@deepseek-ai/dsh-llm'
 import { HarnessError } from '@deepseek-ai/dsh-llm'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import type { UserMessage } from '@deepseek-ai/dsh-session'
+import type { SessionSeq } from '@deepseek-ai/dsh-session'
 import { assertNever, deepFreeze, snapshotJsonValue, type JsonValue } from '@deepseek-ai/dsh-util-values'
 import type { PromptSection, ToolProviderResult } from '@deepseek-ai/dsh-system-prompt'
 import type { PtcRuntime } from '@deepseek-ai/dsh-ptc-runtime'
@@ -21,6 +22,7 @@ import type {} from '@deepseek-ai/dsh-sandbox-policy'
 import type {} from '@deepseek-ai/dsh-user-approval'
 import type { ToolCallView, ToolResultView } from './presentation.ts'
 import { assertSupportedJsonSchema, validateJsonSchemaValue } from './json-schema.ts'
+import { defineTool } from './schema.ts'
 import type { JsonSchemaNode } from './json-schema.ts'
 import { createRunCodeTool, RUN_CODE_NAME } from './ptc.ts'
 import type { PtcSdkLanguage } from './ptc.ts'
@@ -673,6 +675,18 @@ export interface Config {
    * restores strictly serial dispatch. Must be a positive integer.
    */
   maxParallelSubCalls?: number
+  /** Opt-in tool discovery; only named tools enter a request until activated in this Session. */
+  discovery?: {
+    /** Tools kept in every request, in addition to tool_search and tool_activate. */
+    alwaysVisible: string[]
+    /** Prompt sections shown only after at least one associated tool is activated. */
+    promptSections?: {
+      /** Registered prompt-section name. */
+      name: string
+      /** Tool names whose visibility admits this section. */
+      tools: string[]
+    }[]
+  }
 }
 
 /**
@@ -792,6 +806,10 @@ export class ToolRuntime extends Service {
   static Config: z<Config> = z.object({
     mode: z.union(['native', 'ptc', 'both'] as const).default('native'),
     maxParallelSubCalls: z.natural().min(1).default(10),
+    discovery: z.object({
+      alwaysVisible: z.array(z.string()),
+      promptSections: z.array(z.object({ name: z.string(), tools: z.array(z.string()) })),
+    }).extra('default', undefined),
   })
 
   /** Internal staged view consumed by `dsh-agent-loop`'s parallel scheduler. */
@@ -824,6 +842,13 @@ export class ToolRuntime extends Service {
    * transport is stateless beyond its closures over `this`.
    */
   private ptcTransport: ToolDefinition | undefined
+  private readonly discovery: Config['discovery']
+  private readonly discoveryTools: readonly ToolDefinition[]
+  private readonly discoveryHistory = new WeakMap<Agent['session'], {
+    seq: number
+    pending: Map<string, string>
+    enabled: Set<string>
+  }>()
 
   constructor(ctx: Context, config: Config = {}) {
     super(ctx, 'tools')
@@ -831,7 +856,25 @@ export class ToolRuntime extends Service {
     // optional-input type for direct (non-Loader) construction in tests.
     this.defaultMode = config.mode ?? 'native'
     this.maxParallelSubCalls = resolveMaxParallelSubCalls(config.maxParallelSubCalls)
+    this.discovery = config.discovery
+    this.discoveryTools = this.discovery === undefined ? [] : this.createDiscoveryTools()
     ctx.systemPrompt.tools(context => this.wireSchemas(context.scope))
+    if (this.discovery !== undefined) {
+      const sections = new Map((this.discovery.promptSections ?? []).map(entry => [entry.name, entry.tools]))
+      ctx.on('system-prompt/assemble', async (_assembly, context, next) => {
+        const assembled = await next()
+        const agent = this.discoveryAgent(context.scope)
+        if (agent === undefined) return assembled
+        const visible = this.view(agent).visible
+        return {
+          ...assembled,
+          sections: assembled.sections.filter((section) => {
+            const names = sections.get(section.name)
+            return names === undefined || names.some(name => visible.has(name))
+          }),
+        }
+      })
+    }
     if (this.defaultMode !== 'native') {
       ctx.systemPrompt.section(this.collapseSection())
       ctx.systemPrompt.section(this.sdkSection())
@@ -1057,6 +1100,9 @@ export class ToolRuntime extends Service {
     // Reserved unconditionally: any agent may select a code mode for itself,
     // so a name free to take under the deployment default would become a
     // collision the moment a preset mounted.
+    if (this.discoveryTools.some(tool => tool.name === name)) {
+      throw new Error(`tool name "${name}" is reserved for discovery while tools.discovery is configured`)
+    }
     if (name === RUN_CODE_NAME) {
       throw new Error(`tool name "${RUN_CODE_NAME}" is reserved for the PTC mode presentation transport and cannot be registered or shadowed`)
     }
@@ -1155,7 +1201,7 @@ export class ToolRuntime extends Service {
    * @param scope - the viewing scope (the agent), or undefined for the global view.
    * @returns the complete derived view for that scope.
    */
-  private view(scope?: ScopeKey): ToolView {
+  private view(scope?: ScopeKey, includeDeferred = false): ToolView {
     // Scope-chain layers, farthest ancestor first, the exact scope last.
     const layers = this.layers.chainLayers(scope)
     // Chain-blind on purpose: this is the ONE layer whose registrations the
@@ -1172,12 +1218,17 @@ export class ToolRuntime extends Service {
     const visible = new Map<string, ToolDefinition>()
     const knownNames = new Set<string>()
     const restrictableNames = new Set<string>()
+    const agent = this.discoveryAgent(scope)
+    const enabled = agent === undefined || includeDeferred ? undefined : this.activatedTools(agent)
     for (const [name, definition] of inherited) {
       knownNames.add(name)
       restrictableNames.add(name)
       // Restrictions intersect across the whole chain: any scope on it may
       // mask an inherited name for everything nested inside it.
-      if (layers.every(layer => layer.admits(name))) visible.set(name, definition)
+      if (layers.every(layer => layer.admits(name))
+        && (enabled === undefined || this.discovery?.alwaysVisible.includes(name) || enabled.has(name))) {
+        visible.set(name, definition)
+      }
     }
     // The scope's own registrations last, shadowing an inherited name and
     // outside the filter above.
@@ -1186,6 +1237,10 @@ export class ToolRuntime extends Service {
         knownNames.add(name)
         visible.set(name, definition)
       }
+    }
+    for (const definition of this.discoveryTools) {
+      visible.set(definition.name, definition)
+      knownNames.add(definition.name)
     }
     // Presentation infrastructure is resolved last and outside capability
     // filtering. Registration rejects this reserved name, so the insertion is
@@ -1196,6 +1251,90 @@ export class ToolRuntime extends Service {
       visible.set(RUN_CODE_NAME, this.requirePtcTransport())
     }
     return { visible, knownNames, restrictableNames }
+  }
+
+  /** Read successful activation calls from the durable log, including after resume or fork. */
+  private activatedTools(agent: Agent): ReadonlySet<string> {
+    const session = agent.session
+    let history = this.discoveryHistory.get(session)
+    if (history === undefined) {
+      history = { seq: 0, pending: new Map(), enabled: new Set() }
+      this.discoveryHistory.set(session, history)
+    }
+    for (let index = history.seq; index < session.seq; index += 1) {
+      // oxlint-disable-next-line typescript/no-deprecated -- Incremental Session history read; migration deferred.
+      const event = session.eventAt(index as SessionSeq)
+      if (event === undefined) throw new Error(`tool discovery cannot read seq ${String(index)}`)
+      if (event.type === 'tool/call' && event.data.name === 'tool_activate') {
+        try {
+          const args: unknown = JSON.parse(event.data.arguments)
+          if (typeof args === 'object' && args !== null && 'name' in args && typeof args.name === 'string') {
+            history.pending.set(event.data.callId, args.name)
+          }
+        } catch (error: unknown) {
+          // A malformed historical call cannot activate a capability.
+          void error
+        }
+      } else if (event.type === 'tool/result') {
+        const callId = event.data.message.content[0].toolCallId
+        const name = history.pending.get(callId)
+        history.pending.delete(callId)
+        if (name !== undefined && event.data.message.content[0].isError !== true) history.enabled.add(name)
+      } else if (event.type === 'tool/ptc-dispatch' && event.data.name === 'tool_activate'
+        && !event.data.isError) {
+        const args = event.data.arguments
+        if (typeof args === 'object' && args !== null && 'name' in args && typeof args.name === 'string') {
+          history.enabled.add(args.name)
+        }
+      }
+    }
+    history.seq = session.seq
+    return history.enabled
+  }
+
+  /** A Session-owning scope receives discovery; registry and presenter scopes do not. */
+  private discoveryAgent(scope: ScopeKey | undefined): Agent | undefined {
+    if (this.discovery === undefined || scope === undefined || !('session' in scope)) return undefined
+    return scope as Agent
+  }
+
+  /** Fixed-size discovery schemas; the full tool schemas enter only after activation. */
+  private createDiscoveryTools(): readonly ToolDefinition[] {
+    const available = (agent: Agent) => this.view(agent, true).visible
+    const search = defineTool({
+      name: 'tool_search',
+      description: 'Search available tools by task or capability. Returns short names and descriptions. Search before using a tool that is not currently listed, then call tool_activate with its exact name.',
+      parameters: { query: { type: 'string', required: true, description: 'Capability or task to search for.' } },
+      output: { schema: { type: 'string' }, render: (_args, value) => [{ type: 'text', text: value }] },
+      execute(args, exec) {
+        if (exec.agent === undefined) throw new Error('tool_search requires an agent Session')
+        const query = args.query.trim().toLowerCase()
+        if (query.length === 0) throw new Error('tool_search query must not be empty')
+        const words = query.split(/\s+/)
+        const matches = [...available(exec.agent).values()]
+          .filter(tool => tool.name !== 'tool_search' && tool.name !== 'tool_activate' && tool.name !== RUN_CODE_NAME)
+          .filter(tool => words.every(word => `${tool.name} ${tool.description}`.toLowerCase().includes(word)))
+          .sort((a, b) => Number(b.name.toLowerCase().includes(query)) - Number(a.name.toLowerCase().includes(query))
+            || a.name.localeCompare(b.name))
+        return Promise.resolve(JSON.stringify({ total: matches.length, tools: matches.slice(0, 8).map(tool => ({
+          name: tool.name, description: tool.description.slice(0, 180),
+        })) }))
+      },
+    })
+    const activate = defineTool({
+      name: 'tool_activate',
+      description: 'Make one available tool callable and add its complete schema to subsequent requests in this Session. Use the exact name returned by tool_search. Activation does not bypass tool restrictions or approval policy.',
+      parameters: { name: { type: 'string', required: true, description: 'Exact available tool name.' } },
+      output: { schema: { type: 'string' }, render: (_args, value) => [{ type: 'text', text: value }] },
+      execute(args, exec) {
+        if (exec.agent === undefined) throw new Error('tool_activate requires an agent Session')
+        const tool = available(exec.agent).get(args.name)
+        if (tool === undefined || tool.name === 'tool_search' || tool.name === 'tool_activate'
+          || tool.name === RUN_CODE_NAME) throw new Error(`tool "${args.name}" is unavailable`)
+        return Promise.resolve(`Activated ${tool.name}. Its schema is available on the next model request.`)
+      },
+    })
+    return [search, activate]
   }
 
   /**

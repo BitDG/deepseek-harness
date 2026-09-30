@@ -108,6 +108,15 @@ export class SandboxedFileSystem extends LocalFileSystem {
     return super.editText(await this.checkedTarget(target, sandboxPolicy), edit, expected, signal)
   }
 
+  override async removeFile(
+    target: FsTarget,
+    expected: FsVersion,
+    signal?: AbortSignal,
+    sandboxPolicy?: SandboxExecutionPolicy,
+  ): Promise<void> {
+    return super.removeFile(await this.checkedTarget(target, sandboxPolicy), expected, signal)
+  }
+
   /**
    * Enforce the per-call policy against `target` and return the EXACT target the
    * mutation must use, so the checked identity is the mutated one (no

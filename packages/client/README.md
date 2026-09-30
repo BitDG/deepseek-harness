@@ -74,6 +74,11 @@ The kernel packages boot and serve the page; the UI feature packages present it.
 | [`ui-settings-general/`](ui-settings-general/README.md) | Provides the general settings section | — |
 | [`ui-settings-models/`](ui-settings-models/README.md) | Provides model-provider configuration and DeepSeek onboarding | — |
 | [`ui-plugin-manager/`](ui-plugin-manager/README.md) | Contributes the sidebar Plugins panel: install, enable, disable, retry, and compose installed packages | — |
+| [`ui-dashboard/`](ui-dashboard/README.md) | Optional information page and additive card slot | — |
+| [`ui-teable-tasks/`](ui-teable-tasks/README.md) | Optional Teable projects and tasks page | — |
+| [`ui-dashboard-sessions/`](ui-dashboard-sessions/README.md) | Recent DSH Sessions dashboard card | — |
+| [`ui-dashboard-hacker-news/`](ui-dashboard-hacker-news/README.md) | Hacker News top-stories dashboard card | — |
+| [`ui-dashboard-community/`](ui-dashboard-community/README.md) | Tibo, GitHub, calendar, countdown, and time-progress cards | — |
 | [`ui-settings-plugin-inventory/`](ui-settings-plugin-inventory/README.md) | Contributes the read-only Host Loader inventory tab to Plugins settings | — |
 | [`ui-deliverables/`](ui-deliverables/README.md) | Produces the changed-files card with its comparison tabs, delivery cards, and clickable final-response file references | — |
 | [`ui-message-feedback/`](ui-message-feedback/README.md) | The feedback surface: per-message Like/Dislike in the assistant-message action strip, and the feedback dialog behind both ratings and `/feedback` | — |

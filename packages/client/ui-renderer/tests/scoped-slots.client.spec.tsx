@@ -302,7 +302,7 @@ function mountChainRoot(
 }
 
 describe('root outlet', () => {
-  it('renders the root registration and fails loud when root is unregistered (boot order)', () => {
+  it('renders the root registration and fails loud when root is absent on first render', () => {
     const h = makeHost()
     h.add('root', { component: () => <b>shell</b> })
     const renderer = createSlotRenderer()

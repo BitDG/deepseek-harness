@@ -248,6 +248,8 @@
 
     - id: ui-settings-general
       name: '@deepseek-ai/dsh-client-ui-settings-general'
+    - id: ui-design-system
+      name: '@deepseek-ai/dsh-client-ui-design-system'
 
     - id: ui-settings-models
       name: '@deepseek-ai/dsh-client-ui-settings-models'

@@ -229,6 +229,33 @@ export interface Config {
 
 Source: [`packages/api/settings-controller/src/index.ts:36`](../packages/api/settings-controller/src/index.ts)
 
+<a id="deepseek-aidsh-api-teable-tasks"></a>
+
+## `@deepseek-ai/dsh-api-teable-tasks`
+
+Requires: `typert` · `workspaceRegistry`
+
+```ts config-catalog
+/** Required connection and table names for one Teable base. */
+export type Config = TeableConnection
+
+/** Validated connection values supplied by the opt-in profile row. */
+export interface TeableConnection {
+  /** HTTPS origin of the Teable instance; loopback HTTP is allowed for local use. */
+  readonly baseUrl: string
+  /** Teable personal access token with read and write access to both tables. */
+  readonly accessToken: string
+  /** Record table ID for Projects. */
+  readonly projectTableId: string
+  /** Record table ID for Tasks. */
+  readonly taskTableId: string
+  /** Upper bound in milliseconds for one Teable HTTP request. */
+  readonly requestTimeoutMs: number
+}
+```
+
+Source: [`packages/api/teable-tasks/src/index.ts:16`](../packages/api/teable-tasks/src/index.ts)
+
 <a id="deepseek-aidsh-api-terminal-controller"></a>
 
 ## `@deepseek-ai/dsh-api-terminal-controller`
@@ -445,6 +472,72 @@ export interface Config {
 ```
 
 Source: [`packages/client/hmr/src/index.ts:30`](../packages/client/hmr/src/index.ts)
+
+<a id="deepseek-aidsh-client-ui-dashboard-community"></a>
+
+## `@deepseek-ai/dsh-client-ui-dashboard-community`
+
+Requires: `connection`
+
+```ts config-catalog
+/** Bounds for the rolling GitHub search and external request deadline. */
+export interface Config {
+  /** Days since repository creation, from 1 to 30; default 7. */
+  githubDays?: number
+  /** Maximum displayed repositories, from 1 to 20; default 8. */
+  githubCount?: number
+  /** Request deadline in milliseconds, from 1000 to 60000; default 12000. */
+  requestTimeoutMs?: number
+}
+```
+
+Source: [`packages/client/ui-dashboard-community/src/index.ts:12`](../packages/client/ui-dashboard-community/src/index.ts)
+
+<a id="deepseek-aidsh-client-ui-dashboard-devices"></a>
+
+## `@deepseek-ai/dsh-client-ui-dashboard-devices`
+
+Requires: `connection`
+
+```ts config-catalog
+/** Beszel connection and sampling options. Empty connection fields read the local Host. */
+export interface Config {
+  /** HTTP(S) Beszel Hub URL; default empty. */
+  baseUrl?: string
+  /** User API token; default empty, preferred over email/password. */
+  apiToken?: string
+  /** Beszel email; default empty. */
+  email?: string
+  /** Beszel password; default empty. */
+  password?: string
+  /** Remote fetch and Windows CPU query deadline, 1000–60000 ms; default 12000. */
+  requestTimeoutMs?: number
+  /** Maximum systems displayed, 1–50; default 12. */
+  systemCount?: number
+  /** Exact CPU temperature sensor; default empty selects CPU/package/Tctl/Tdie names. */
+  cpuTemperatureSensor?: string
+}
+```
+
+Source: [`packages/client/ui-dashboard-devices/src/index.ts:12`](../packages/client/ui-dashboard-devices/src/index.ts)
+
+<a id="deepseek-aidsh-client-ui-dashboard-hacker-news"></a>
+
+## `@deepseek-ai/dsh-client-ui-dashboard-hacker-news`
+
+Requires: `connection`
+
+```ts config-catalog
+/** Validated feed size and upstream deadline. */
+export interface Config {
+  /** Number of top ids read for this card, from 1 to 20; default 8. */
+  storyCount?: number
+  /** Upstream fetch deadline in milliseconds, from 1000 to 60000; default 12000. */
+  requestTimeoutMs?: number
+}
+```
+
+Source: [`packages/client/ui-dashboard-hacker-news/src/index.ts:12`](../packages/client/ui-dashboard-hacker-news/src/index.ts)
 
 <a id="deepseek-aidsh-client-ui-sidebar-documentpreview"></a>
 
@@ -880,7 +973,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/fs/fs-local/src/index.ts:43`](../packages/fs/fs-local/src/index.ts)
+Source: [`packages/fs/fs-local/src/index.ts:44`](../packages/fs/fs-local/src/index.ts)
 
 <a id="deepseek-aidsh-fs-sandbox"></a>
 
@@ -2978,10 +3071,12 @@ export interface Config {
   timeZone?: string
   /** Minimum milliseconds between durable injections in one session. Omit or set to 0 to inject at every eligible step. */
   refreshIntervalMs?: number
+  /** `tool` exposes a current_time lookup instead of injecting every step. */
+  mode?: 'snapshot' | 'tool'
 }
 ```
 
-Source: [`packages/context/time-context/src/index.ts:49`](../packages/context/time-context/src/index.ts)
+Source: [`packages/context/time-context/src/index.ts:50`](../packages/context/time-context/src/index.ts)
 
 <a id="deepseek-aidsh-tmux-context"></a>
 
@@ -3282,6 +3377,8 @@ Requires: `agents` · `tools` · `skills`
 export interface Config {
   /** Maximum normalized description length rendered in the session catalog; minimum 3. */
   catalogDescriptionMaxLength?: number
+  /** `search` publishes brief discovery guidance and resolves matching summaries only on tool calls. */
+  catalogMode?: 'eager' | 'search'
 }
 ```
 
@@ -3490,13 +3587,25 @@ export interface Config {
    * restores strictly serial dispatch. Must be a positive integer.
    */
   maxParallelSubCalls?: number
+  /** Opt-in tool discovery; only named tools enter a request until activated in this Session. */
+  discovery?: {
+    /** Tools kept in every request, in addition to tool_search and tool_activate. */
+    alwaysVisible: string[]
+    /** Prompt sections shown only after at least one associated tool is activated. */
+    promptSections?: {
+      /** Registered prompt-section name. */
+      name: string
+      /** Tool names whose visibility admits this section. */
+      tools: string[]
+    }[]
+  }
 }
 
 /** How the registry presents its tools to the model (see {@link Config.mode}). */
 export type ToolPresentationMode = 'native' | 'ptc' | 'both'
 ```
 
-Source: [`packages/core/tools/src/index.ts:656`](../packages/core/tools/src/index.ts)
+Source: [`packages/core/tools/src/index.ts:658`](../packages/core/tools/src/index.ts)
 
 <a id="deepseek-aidsh-typert-loader"></a>
 
@@ -3788,6 +3897,8 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 - `@deepseek-ai/dsh-client-ui-commands` ([`packages/client/ui-commands/src/index.ts`](../packages/client/ui-commands/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-conversation` ([`packages/client/ui-conversation/src/index.ts`](../packages/client/ui-conversation/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-cordis` ([`packages/extensions/ui-cordis/src/index.ts`](../packages/extensions/ui-cordis/src/index.ts))
+- `@deepseek-ai/dsh-client-ui-dashboard` ([`packages/client/ui-dashboard/src/index.ts`](../packages/client/ui-dashboard/src/index.ts))
+- `@deepseek-ai/dsh-client-ui-dashboard-sessions` ([`packages/client/ui-dashboard-sessions/src/index.ts`](../packages/client/ui-dashboard-sessions/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-deliverables` — requires `systemPrompt` · `connection` · `sessionQuery` · `sessionController` · `workspaceFiles` · `fs` · `sandboxPolicy` · `workspaceChanges` ([`packages/client/ui-deliverables/src/index.ts`](../packages/client/ui-deliverables/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-directory-picker-browse` ([`packages/client/ui-directory-picker-browse/src/index.ts`](../packages/client/ui-directory-picker-browse/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-directory-picker-native` ([`packages/client/ui-directory-picker-native/src/index.ts`](../packages/client/ui-directory-picker-native/src/index.ts))
@@ -3818,6 +3929,7 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 - `@deepseek-ai/dsh-client-ui-sidebar-terminal` ([`packages/client/ui-sidebar-terminal/src/index.ts`](../packages/client/ui-sidebar-terminal/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-skill` ([`packages/client/ui-skill/src/index.ts`](../packages/client/ui-skill/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-subagent` ([`packages/client/ui-subagent/src/index.ts`](../packages/client/ui-subagent/src/index.ts))
+- `@deepseek-ai/dsh-client-ui-teable-tasks` ([`packages/client/ui-teable-tasks/src/index.ts`](../packages/client/ui-teable-tasks/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-theme` ([`packages/client/ui-theme/src/index.ts`](../packages/client/ui-theme/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-tool` ([`packages/client/ui-tool/src/index.ts`](../packages/client/ui-tool/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-trajectory` ([`packages/client/ui-trajectory/src/index.ts`](../packages/client/ui-trajectory/src/index.ts))
@@ -3903,6 +4015,7 @@ Imported as libraries by other packages; a `cordis.yml` cannot load them.
 - `@deepseek-ai/dsh-client-ui-slots` ([`packages/client/ui-slots/src/index.ts`](../packages/client/ui-slots/src/index.ts))
 - `@deepseek-ai/dsh-client-web` ([`packages/client/web/src/index.ts`](../packages/client/web/src/index.ts))
 - `@deepseek-ai/dsh-cmdline` ([`packages/boot/cmdline/src/index.ts`](../packages/boot/cmdline/src/index.ts))
+- `@deepseek-ai/dsh-dashboard` ([`packages/bundle/dashboard/src/index.ts`](../packages/bundle/dashboard/src/index.ts))
 - `@deepseek-ai/dsh-deque` ([`packages/util/deque/src/index.ts`](../packages/util/deque/src/index.ts))
 - `@deepseek-ai/dsh-experimental-agent-team-profile` ([`packages/experimental/agent-team-profile/src/index.ts`](../packages/experimental/agent-team-profile/src/index.ts))
 - `@deepseek-ai/dsh-experimental-agent-team-web-profile` ([`packages/experimental/agent-team-web-profile/src/index.ts`](../packages/experimental/agent-team-web-profile/src/index.ts))
@@ -3934,6 +4047,7 @@ Imported as libraries by other packages; a `cordis.yml` cannot load them.
 - `@deepseek-ai/dsh-session-telemetry` ([`packages/session/session-telemetry/src/index.ts`](../packages/session/session-telemetry/src/index.ts))
 - `@deepseek-ai/dsh-session-title-llm` ([`packages/session/session-title-llm/src/index.ts`](../packages/session/session-title-llm/src/index.ts))
 - `@deepseek-ai/dsh-subagent-in-process-driver` ([`packages/subagent/subagent-in-process-driver/src/index.ts`](../packages/subagent/subagent-in-process-driver/src/index.ts))
+- `@deepseek-ai/dsh-teable-tasks` ([`packages/bundle/teable-tasks/src/index.ts`](../packages/bundle/teable-tasks/src/index.ts))
 - `@deepseek-ai/dsh-timeout` ([`packages/util/timeout/src/index.ts`](../packages/util/timeout/src/index.ts))
 - `@deepseek-ai/dsh-typert-generator` ([`packages/typert/generator/src/index.ts`](../packages/typert/generator/src/index.ts))
 - `@deepseek-ai/dsh-typert-protocol` ([`packages/typert/protocol/src/index.ts`](../packages/typert/protocol/src/index.ts))

@@ -129,6 +129,7 @@ shell.native (factory)
 │        ├─ settings.models.footer
 │        └─ settings.plugins.tab
 ├─ main
+│  ├─ dashboard.card
 │  ├─ plugins.item
 │  ├─ plugins.bundle.config
 │  ├─ plugins.row.config

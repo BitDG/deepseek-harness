@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-agent 可以在会话期间发现并加载 skill。在首次请求前，如果存在模型可调用 skill 且 `skill` 工具可见，agent 会收到一份持久目录，列出可用 skill 的名称与有长度上限的描述，并可用 `skill` 工具加载完整指令。用户可以用 `/name` 调用某个用户可调用的 skill，把相同的指令注入该步骤。目录变更会追加一份完整替换，其中空目录会停用旧名称；可配置 `catalogDescriptionMaxLength` 来限制每条描述的长度。
+agent 可以在会话期间发现并加载 skill。默认模式会发布名称与限定长度描述的持久目录。设置 `catalogMode: search` 后，仅发布简短指引，模型需要时调用 `skill_search` 查询匹配的摘要。两种模式都使用 `skill` 加载完整指令，用户也可以用 `/name` 直接调用用户可调用的 skill。
 
 ## 目录
 
@@ -44,12 +44,14 @@ agent 可以在会话期间发现并加载 skill。在首次请求前，如果�
 | 字段 | 默认值 | 含义 |
 |---|---|---|
 | `catalogDescriptionMaxLength` | `500` | 会话目录中渲染的规范化描述最大长度；最小为 3 |
+| `catalogMode` | `eager` | `search` 用简短指引和 `skill_search` 工具替代完整目录 |
 
 生成的[配置目录](../../../docs/config-catalog.zh.md#deepseek-aidsh-tool-skill)是每个受支持字段的穷尽式真源。
 
 ### 模型得到什么
 
 - **会话目录。** 当存在模型可调用 skill 且 `skill` 工具可见时，agent 会在首次请求前收到一条持久的用户角色消息，列出每个 skill 的名称与有长度上限的描述；该消息告诉模型在着手任务前先用工具加载 skill，且绝不能仅凭摘要推断指令。
+- **按需发现。** 设置 `catalogMode: search` 后，首次请求不含 skill 摘要。`skill_search(query)` 最多返回八个当前可由模型调用的名称和限定长度的描述。恢复的会话会用简短搜索指引替换此前的完整目录。
 - **加载工具。** 模型以精确的 skill 名称调用 `skill`，并收到完整指令正文以及规范的 `<skill_content>` 块中的资源指引；该结果作为普通工具历史保留。
 - **用户显式调用。** 直接用户输入中的 `/name` token 若指名某个用户可调用 skill，会把该 skill 的指令注入该步骤，而无需模型自行加载。
 - **实时目录更新。** 后续成员关系、描述或可见性变化会追加完整的替换目录；删除全部 skill 时会追加空目录，停用较早的名称。
@@ -129,7 +131,7 @@ A user may also invoke a skill directly; its <skill_content> block then appears 
 
 #### Token 影响
 
-重复输入成本随 skill 数量和 `catalogDescriptionMaxLength` 增长；当列表为空或工具被隐藏或遮蔽时，不会发送初始目录 token。每次实际目录变更都会添加一条保留的完整替换消息。
+在 `eager` 模式下，重复输入成本随 skill 数量和 `catalogDescriptionMaxLength` 增长；当列表为空或工具被隐藏或遮蔽时，不会发送初始目录 token。每次实际目录变更都会添加一条保留的完整替换消息。在 `search` 模式下，初始指引大小固定。只有 `skill_search` 返回匹配结果时，skill 摘要才进入历史；完整指令仅通过 `skill` 或 `/name` 加载。
 
 #### KV Cache 影响
 

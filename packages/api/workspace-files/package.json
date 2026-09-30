@@ -1,6 +1,6 @@
 {
   "name": "@deepseek-ai/dsh-api-workspace-files",
-  "description": "Workspace file service and Client resource provider: bounded reads, directory listing, and live metadata over the workspaceFiles Remote namespace",
+  "description": "Workspace file service and Client resource provider: bounded reads, directory listing, guarded deletion, and live metadata",
   "version": "0.1.6-alpha.2",
   "publishConfig": {
     "access": "public"

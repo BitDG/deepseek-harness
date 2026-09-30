@@ -10,7 +10,7 @@ import z from '@deepseek-ai/schemastery'
 import type { Agent, PreStepDecision } from '@deepseek-ai/dsh-agent'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import { createUserMessage } from '@deepseek-ai/dsh-llm'
-import { SessionSeq, type UserMessage } from '@deepseek-ai/dsh-session'
+import type { SessionSeq, UserMessage } from '@deepseek-ai/dsh-session'
 import {
   escapeText,
   isModelInvocable,
@@ -33,7 +33,7 @@ const DEFAULT_CATALOG_DESCRIPTION_MAX_LENGTH = 500
  */
 export interface SkillCatalogSource {
   readonly kind: 'skill-catalog'
-  readonly form: 'catalog'
+  readonly form: 'catalog' | 'search'
   /** Marks a replacement catalog rather than this session's first publication. */
   readonly update?: true
   /** Exactly the entries this message published, in catalog order. */
@@ -61,11 +61,14 @@ function catalogSourceEntries(
 export interface Config {
   /** Maximum normalized description length rendered in the session catalog; minimum 3. */
   catalogDescriptionMaxLength?: number
+  /** `search` publishes brief discovery guidance and resolves matching summaries only on tool calls. */
+  catalogMode?: 'eager' | 'search'
 }
 
 /** Validate and default the model-facing skill catalog configuration. */
 export const Config: z<Config> = z.object({
   catalogDescriptionMaxLength: z.number().default(DEFAULT_CATALOG_DESCRIPTION_MAX_LENGTH),
+  catalogMode: z.union(['eager', 'search'] as const).default('eager'),
 })
 
 /**
@@ -76,11 +79,37 @@ export const Config: z<Config> = z.object({
  */
 export function apply(ctx: Context, config: Config = {}): void {
   const catalogDescriptionMaxLength = config.catalogDescriptionMaxLength ?? DEFAULT_CATALOG_DESCRIPTION_MAX_LENGTH
+  const catalogMode = config.catalogMode ?? 'eager'
   assertPositiveInteger('catalogDescriptionMaxLength', catalogDescriptionMaxLength, 3)
+
+  if (catalogMode === 'search') {
+    ctx.tools.register(defineTool({
+      name: 'skill_search',
+      description: 'Find relevant available skills by name or task description. Returns at most eight short summaries. Call skill with an exact returned name to load its full instructions.',
+      parameters: { query: { type: 'string', required: true, description: 'Skill name or task to find.' } },
+      output: { schema: { type: 'string' }, render: (_args, value) => [{ type: 'text', text: value }] },
+      async execute(args, exec) {
+        const query = args.query.trim().toLowerCase()
+        if (query.length === 0) throw new Error('skill_search query must not be empty')
+        const words = query.split(/\s+/)
+        const lookup = { cwd: exec.agent?.session.header.cwd, signal: exec.signal, scope: exec.agent }
+        const skills = (await ctx.skills.list(lookup)).filter(isModelInvocable)
+        const matches = skills.filter(skill => words.every(word =>
+          `${skill.name} ${skill.description}`.toLowerCase().includes(word)))
+          .sort((a, b) => Number(b.name.toLowerCase().includes(query)) - Number(a.name.toLowerCase().includes(query))
+            || a.name.localeCompare(b.name))
+        return JSON.stringify({ total: matches.length, skills: matches.slice(0, 8).map(skill => ({
+          name: skill.name, description: catalogDescription(skill.description, catalogDescriptionMaxLength),
+        })) })
+      },
+    }))
+  }
 
   const skillTool = defineTool({
     name: 'skill',
-    description: 'Load the full instructions for an available skill. Call this with the exact skill name from the session skill catalog before acting on a task that names or clearly matches that skill.',
+    description: catalogMode === 'search'
+      ? 'Load full instructions for an available skill by exact name. Use skill_search to discover names; call this before acting on a task that names or clearly matches a skill.'
+      : 'Load the full instructions for an available skill. Call this with the exact skill name from the session skill catalog before acting on a task that names or clearly matches that skill.',
     parameters: {
       name: { type: 'string', required: true, description: 'The exact skill name from the available skills list.' },
     },
@@ -218,14 +247,14 @@ export function apply(ctx: Context, config: Config = {}): void {
     if (decision.kind === 'reject') return decision
     signal.throwIfAborted()
     const toolVisible = ctx.tools.get(skillTool.name, agent) === skillTool
-    const snapshot = toolVisible
+    const snapshot = toolVisible && catalogMode === 'eager'
       ? await ctx.skills.snapshot({ cwd: agent.session.header.cwd, signal, scope: agent })
       : { skills: [], complete: true }
     signal.throwIfAborted()
     if (!snapshot.complete) return decision
     const skills = snapshot.skills.filter(isModelInvocable)
     const entries = catalogSourceEntries(skills, catalogDescriptionMaxLength)
-    const digest = digestCatalogEntries(entries)
+    const digest = catalogMode === 'search' ? 'search' : digestCatalogEntries(entries)
     const history = catalogHistory(agent)
     const existing = catalogMessage(decision.messages)
     if (history.visibleDigest === digest) {
@@ -233,15 +262,15 @@ export function apply(ctx: Context, config: Config = {}): void {
         ? decision
         : { ...decision, messages: decision.messages.filter(message => message.id !== existing.message.id) }
     }
-    if (existing !== undefined && digestCatalogEntries(existing.entries) === digest) return decision
-    if (!history.published && skills.length === 0) {
+    if (existing !== undefined && catalogDigest(existing.message.source, existing.entries) === digest) return decision
+    if ((!toolVisible || catalogMode === 'eager') && !history.published && skills.length === 0) {
       return existing === undefined
         ? decision
         : { ...decision, messages: decision.messages.filter(message => message.id !== existing.message.id) }
     }
-    const catalog = history.published
-      ? renderCatalogUpdate(entries)
-      : renderCatalogMessage(entries)
+    const catalog = catalogMode === 'search'
+      ? renderSearchGuidance(history.published)
+      : history.published ? renderCatalogUpdate(entries) : renderCatalogMessage(entries)
     return {
       ...decision,
       messages: existing === undefined
@@ -249,6 +278,19 @@ export function apply(ctx: Context, config: Config = {}): void {
         : decision.messages.map(message => message.id === existing.message.id ? catalog : message),
     }
   })
+}
+
+function renderSearchGuidance(update: boolean): UserMessage {
+  return createUserMessage({
+    content: [{ type: 'text', text: update
+      ? 'Skill discovery now uses skill_search. Earlier available-skills lists are retired. Search for a relevant skill, then call skill with its exact name before following its instructions. A direct user /name invocation still loads that skill.'
+      : 'Skills are available on demand. Use skill_search to find a relevant skill, then call skill with its exact name before following its instructions. A direct user /name invocation still loads that skill.' }],
+    source: { kind: 'skill-catalog', form: 'search', ...update ? { update: true } : {}, entries: [] },
+  })
+}
+
+function catalogDigest(source: UserMessage['source'], entries: SkillCatalogSource['entries']): string {
+  return source.kind === 'skill-catalog' && source.form === 'search' ? 'search' : digestCatalogEntries(entries)
 }
 
 function renderCatalogMessage(entries: SkillCatalogSource['entries']): UserMessage {
@@ -363,14 +405,14 @@ function catalogHistory(agent: Agent): { visibleDigest?: string; published: bool
   let published = false
   for (let index = agent.session.seq - 1; index >= 0; index -= 1) {
     // oxlint-disable-next-line typescript/no-deprecated -- Existing Session history read; migration deferred.
-    const event = agent.session.eventAt(SessionSeq(index))
+    const event = agent.session.eventAt(index as SessionSeq)
     if (event === undefined) {
       throw new Error(`skill catalog cannot read seq ${String(index)} below the current Session length`)
     }
     if (event.type !== 'user/message' || event.data.source.kind !== 'skill-catalog') continue
     const entries = readCatalogEntries(event.data.source)
     if (entries === undefined) continue
-    const digest = digestCatalogEntries(entries)
+    const digest = catalogDigest(event.data.source, entries)
     published = true
     if (visible.has(event.seq)) return { visibleDigest: digest, published }
   }

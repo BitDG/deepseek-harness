@@ -1059,6 +1059,11 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         parameters: [{ name: 'target', description: 'the resolved target to edit.' }, { name: 'edit', description: 'the literal search/replace request.' }, { name: 'expected', description: 'the version guard; omit for an unconditional edit.' }, { name: 'signal', description: 'aborts before atomic publication takes effect.' }, { name: 'sandboxPolicy', description: 'the per-call mode and workspace root this edit runs under; a sandboxing backend fences the edit by it, the bare backend ignores it. Omit to leave the backend its own default.' }],
         returns: 'the outcome, including the version the edit produced.',
       },
+      {
+        signature: 'async removeFile( target: FsTarget, expected: FsVersion, signal?: AbortSignal, sandboxPolicy?: SandboxExecutionPolicy, ): Promise<void>',
+        description: 'Remove one regular file only when its current version matches the listing. Backends without deletion support reject the operation.',
+        parameters: [{ name: 'target', description: 'file to remove.' }, { name: 'expected', description: 'version observed before the user confirmed deletion.' }, { name: 'signal', description: 'aborts before removal takes effect.' }, { name: 'sandboxPolicy', description: 'per-call mutation policy.' }],
+      },
     ],
   },
   {
@@ -3316,6 +3321,11 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'List the direct children of one directory inside the Session\'s workspace.',
         parameters: [{ name: 'workspaceFileScope', description: 'header-derived workspace root for the Session identity on the wire.' }, { name: 'path', description: 'workspace path, absolute or relative to the workspace root.' }, { name: 'signal', description: 'caller cancellation.' }],
         returns: 'the directory\'s children in the backend\'s stable name order, bounded by the entry cap.',
+      },
+      {
+        signature: '@Remote async deleteFile(workspaceFileScope: WorkspaceFileScope, path: string, expectedVersion: string, signal: AbortSignal): Promise<void>',
+        description: 'Delete one listed regular file inside the Session workspace after its version is confirmed.',
+        parameters: [{ name: 'workspaceFileScope', description: 'header-derived workspace root.' }, { name: 'path', description: 'workspace path of the listed file.' }, { name: 'expectedVersion', description: 'version returned by the directory listing.' }, { name: 'signal', description: 'caller cancellation.' }],
       },
       {
         signature: '@Remote({ mode: \'stream\' }) changes(workspaceFileScope: WorkspaceFileScope, signal: AbortSignal): AsyncIterable<WorkspaceFileWatchFrame>',
@@ -7146,7 +7156,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'WorkspaceDirectoryEntry',
-    declaration: 'export interface WorkspaceDirectoryEntry {\n    readonly name: string;\n    readonly type: \'file\' | \'directory\' | \'other\';\n    readonly size?: number;\n}',
+    declaration: 'export interface WorkspaceDirectoryEntry {\n    readonly name: string;\n    readonly type: \'file\' | \'directory\' | \'other\';\n    readonly size?: number;\n    readonly version?: string;\n}',
   },
   {
     name: 'WorkspaceDirectoryListing',

@@ -15,6 +15,9 @@ import type {} from '@deepseek-ai/dsh-api-remotes/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-session/client'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar-right/client'
+import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
+import { formatFileMention } from '@deepseek-ai/dsh-file-reference/grammar'
+import { relativizeToCwd } from '@deepseek-ai/dsh-util-workspace-path'
 import { FILES_ID, filesDefinition } from './definition.tsx'
 import { createList, filesFace } from './face.ts'
 import { FilesBody } from './FilesBody.tsx'
@@ -34,7 +37,7 @@ const NS = 'sidebarFiles'
  * Required browser services: the tab registry, the keyed seat, the Remote
  * carrier and its namespace, and copy.
  */
-export const inject = ['slots', 'locale', 'sidebarRightTabs', 'remote', 'remote.workspaceFiles']
+export const inject = ['slots', 'locale', 'sidebarRightTabs', 'remote', 'remote.workspaceFiles', 'sessions', 'conversation']
 
 /**
  * Client plugin body: register the type, its dictionaries, its body, and its chip title.
@@ -46,7 +49,26 @@ export function apply(ctx: ClientContext): void {
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-sidebar-files: dictionaries')
 
   const store = createFilesStore()
-  const inject = filesFace(createList(ctx.remote))
+  const face = filesFace(createList(ctx.remote))
+  const inject = (...args: Parameters<typeof face>) => {
+    const [sessionId] = args
+    return {
+      ...face(...args),
+      addToConversation(root: string, path: string, name: string): boolean {
+        const scope = ctx.sessions.scope(sessionId)
+        if (scope === undefined) return false
+        const relative = relativizeToCwd(path, root).replace(/\\/g, '/')
+        const mention = formatFileMention({ path: relative, kind: 'file' }, false)
+        if (mention === undefined) return false
+        return ctx.conversation.input.for(scope).appendReference({
+          source: 'reference', ref: mention, label: name, appearance: 'file', clipboardText: mention,
+        })
+      },
+      removeFile(path: string, version: string, signal: AbortSignal) {
+        return ctx.remote.workspaceFiles.deleteFile(sessionId, path, version, signal)
+      },
+    }
+  }
   ctx.effect(() => ctx.slots.inject('sidebar.right.pane.tab', () => ctx.slots.register(
     { name: 'sidebar.right.pane.tab', key: FILES_ID, locale: NS, store, inject },
     FilesBody,

@@ -171,6 +171,32 @@ async function mintAgentScope(ctx: Context, subject: string | Agent): Promise<{ 
 }
 
 describe('dsh-tool-skill', () => {
+  it('searches skills on demand without publishing their summaries in the first request', async () => {
+    const home = await tempDir('tool-search')
+    const ctx = await setup(home, { catalogMode: 'search' })
+    ctx.skills.register({ name: 'device-logs', description: 'Inspect Android device logs.', source: 'runtime', content: 'Read logcat.' })
+    ctx.skills.register({ name: 'other-work', description: 'Unrelated work.', source: 'runtime', content: 'Other.' })
+    const agent = agentForCwd('/workspace')
+    const prefix = await composePrefixForAgent(ctx, agent)
+    expect(JSON.stringify(prefix)).toContain('skill_search')
+    expect(JSON.stringify(prefix)).not.toContain('Inspect Android device logs.')
+    expect(ctx.tools.schemas().map(tool => tool.name)).toEqual(['skill_search', 'skill'])
+
+    const found = await ctx.tools.execute({
+      signal: testToolSignal, callId: ToolCallId('skill-search'), name: 'skill_search',
+      arguments: { query: 'device logs' }, agent,
+    })
+    expect(found.isError).toBe(false)
+    expect(JSON.stringify(found.content)).toContain('device-logs')
+    expect(JSON.stringify(found.content)).not.toContain('Read logcat.')
+    const loaded = await ctx.tools.execute({
+      signal: testToolSignal, callId: ToolCallId('skill-load'), name: 'skill',
+      arguments: { name: 'device-logs' }, agent,
+    })
+    expect(loaded.isError).toBe(false)
+    expect(JSON.stringify(loaded.content)).toContain('Read logcat.')
+  })
+
   it('registers the skill tool schema and removes it on dispose', async () => {
     const ctx = new Context()
     await ctx.plugin(SystemPrompt)

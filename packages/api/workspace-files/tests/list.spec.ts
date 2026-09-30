@@ -28,7 +28,7 @@ describe('workspaceFiles.list — the happy path', () => {
     const listing = await endpoint().list(harness.scope, '.', signal())
     expect(listing.path).toBe('')
     expect(listing.truncated).toBe(false)
-    expect(listing.entries).toEqual([
+    expect(listing.entries.map(({ version: _version, ...entry }) => entry)).toEqual([
       { name: '.hidden', type: 'file', size: 0 },
       { name: 'notes.txt', type: 'file', size: 5 },
       { name: 'src', type: 'directory' },
@@ -56,7 +56,7 @@ describe('workspaceFiles.list — the happy path', () => {
     await symlink(join(workspace, 'dir'), join(workspace, 'to-dir'))
     await symlink(join(workspace, 'missing'), join(workspace, 'dangling'))
     const listing = await endpoint().list(harness.scope, '.', signal())
-    expect(listing.entries).toEqual([
+    expect(listing.entries.map(({ version: _version, ...entry }) => entry)).toEqual([
       { name: 'dangling', type: 'other' },
       { name: 'dir', type: 'directory' },
       { name: 'real.txt', type: 'file', size: 1 },

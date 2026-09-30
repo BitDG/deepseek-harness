@@ -1,5 +1,5 @@
 ---
-description: "dsh Web 客户端右侧 Sidebar 的文件树 tab 类型：通过网络逐层列出会话工作区根目录，按资源地址把文件打开到 Sidebar。"
+description: "dsh Web 客户端右侧 Sidebar 的文件树 tab 类型：逐层列出会话工作区、预览文件、向草稿添加引用并确认删除。"
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-右侧 Sidebar 的导航器 tab 类型：把会话的工作区根目录画成一棵树，逐层经线上列出，并把文件打开到 Sidebar 里。它是从引导页进入的页类型，不认领任何地址；它按地址打开文件，交给 `dsh-resource://file` 的查看器认领：`ui-sidebar-right` 里没有任何东西认识本包。
+右侧 Sidebar 的导航器 tab 类型：把会话的工作区根目录画成一棵树，逐层经线上列出。点击文件会在 Sidebar 打开；右键菜单可将文件引用加入对话草稿，或在确认后删除文件。该页类型不认领地址，而是按地址打开文件，交给 `dsh-resource://file` 查看器认领。
 
 ## 目录
 
@@ -38,10 +38,12 @@ kind: "package-reference"
 | 条目类型 | 行 |
 |---|---|
 | `directory` | 切换展开与折叠；该层在首次打开时拉取，折叠期间保留。 |
-| `file` | 经 `useTabInfo().tab.actions.openResource` 打开 `dsh-resource://file/session/<sessionId>/<encoded path relative to the root>`，地址由 `@deepseek-ai/dsh-util-workspace-path` 的 `fileAddressFor` 从条目的绝对路径与树的根生成，落在该 tab 自己的 pane 里。 |
+| `file` | 经 `useTabInfo().tab.actions.openResource` 打开 `dsh-resource://file/session/<sessionId>/<encoded path relative to the root>`，地址由 `@deepseek-ai/dsh-util-workspace-path` 的 `fileAddressFor` 从条目的绝对路径与树的根生成，落在该 tab 自己的 pane 里。右键提供「添加到对话」与「删除」。 |
 | `other` | 灰显且不可点击，从而完整呈现目录内容。 |
 
 被端点条目上限截断的层以一条标记收尾；空层如实说明；失败的层按错误码各显示一行（`workspace-file/not-found`、`outside-workspace`、`not-directory`），其他情况显示传输层自己的消息。重新读取丢弃所有已列出的层并只对展开中的层重新请求；折叠的层在下次打开时重新拉取。没有工作目录的会话只显示一行说明，而不是树。
+
+「添加到对话」将结构化的 `@file` 引用追加到当前 Session 未发送的草稿，保留已有文字并聚焦输入框。「删除」先请求确认，再把目录列表中的版本提交给 Host；文件变化后会以过期状态拒绝删除，成功后刷新父目录。没有版本的条目禁用删除，失败信息留在确认框中。
 
 状态保存在类型自己的存储里，按 tab id 分桶：`root`、`levels`（每个绝对路径的 loading / ready / failed）、`expanded` 与 `scrollTop`——滚动期间偏移由正文自己记录，卸载时一次性写入。存储比 body 活得久，切到其他侧栏 tab 再切回来时树带着已加载的层重新挂载，滚动位置也随之恢复。owner 的 `signal` 终结一个桶：中止时忘掉该 tab，其后才结算的列表与卸载时的偏移提交都什么也不写。
 
@@ -57,7 +59,7 @@ kind: "package-reference"
 ## 已知限制与暂缓事项
 
 <a id="known-limitations-and-deferred-work"></a>
-- **只有列目录。**没有搜索、产物过滤、拖拽、重命名、右键菜单、当前文件高亮或文件系统监听；一层只会因重新读取而变化。
+- **只处理文件。**没有搜索、产物过滤、拖拽、重命名、当前文件高亮或文件系统监听。目录与其他条目没有右键菜单；一层只会因重新读取或成功删除而变化。
 - **只有一个根。**树以会话工作目录为根；没有办法浏览到它之上，而 Host 本来也拒绝工作区根之外的路径。
 
 <a id="dev-note"></a>

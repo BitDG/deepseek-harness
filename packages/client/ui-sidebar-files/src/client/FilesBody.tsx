@@ -5,18 +5,19 @@
  * for goes through its injected face. The component itself only decides what to
  * draw for each absolute path and what a click means: a directory toggles, a
  * file opens through the owner's `tabActions` for a `file:` viewer to claim, and
- * anything else is shown but refuses to open. The header row is the text
+ * its context menu inserts a draft reference or confirms removal. Anything
+ * else is shown but refuses to open. The header row is the text
  * preview's: the root's path, directories greyed and the last segment in full
  * ink, then the one control at its end, reload, which drops every listed level
  * and asks again for the expanded ones.
  */
-import { useEffect, useLayoutEffect, useRef } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { ReactNode, RefObject } from 'react'
 import clsx from 'clsx'
 import type { RemoteFailure } from '@deepseek-ai/dsh-api-remotes/client'
 import type { PropsLocale, PropsRuntime, PropsStore, TranslateNS } from '@deepseek-ai/dsh-client-ui-slots'
 import {
-  FileTypeIcon, IconFolderClose16, IconFolderOpen16, IconRefreshOutline16, classifyFileType,
+  Button, FileTypeIcon, IconFolderClose16, IconFolderOpen16, IconRefreshOutline16, Menu, Modal, classifyFileType,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import { fileAddressFor, pathPartsOf } from '@deepseek-ai/dsh-util-workspace-path'
 import type { WorkspaceDirectoryEntry } from '@deepseek-ai/dsh-api-workspace-files/types'
@@ -32,6 +33,10 @@ export type FilesBodyProps =
   & PropsStore<ReturnType<typeof createFilesStore>>
   & FilesInjected
   & PropsLocale<'sidebarFiles'>
+  & {
+    readonly addToConversation: (root: string, path: string, name: string) => boolean
+    readonly removeFile: (path: string, version: string, signal: AbortSignal) => Promise<{ ok: true; value: void } | { ok: false; error: RemoteFailure }>
+  }
 
 /** Natural, case-insensitive name order, so `file2` precedes `file10`. */
 const byName = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' })
@@ -105,6 +110,10 @@ interface TreeContext {
   readonly state: FilesTabState
   readonly onToggle: (path: string) => void
   readonly onOpen: (path: string) => void
+  readonly menuPath: string | null
+  readonly onMenu: (path: string | null) => void
+  readonly onAdd: (path: string, name: string) => void
+  readonly onDelete: (parent: string, path: string, entry: WorkspaceDirectoryEntry) => void
   readonly t: TranslateNS<'sidebarFiles'>
 }
 
@@ -126,10 +135,35 @@ function Entry({ parent, entry, tree }: { parent: string; entry: WorkspaceDirect
   if (entry.type === 'file') {
     return (
       <li className={css.item} data-files-entry="file" data-files-path={path}>
-        <button type="button" className={css.row} onClick={() => { tree.onOpen(path) }}>
-          <FileTypeIcon kind={classifyFileType(entry.name)} size={16} className={css.fileIcon} />
-          <span className={css.name}>{entry.name}</span>
-        </button>
+        <Menu
+          open={tree.menuPath === path}
+          portal
+          compact
+          autoFocus
+          className={css.menuAnchor}
+          anchor={(
+            <button
+              type="button"
+              className={css.row}
+              onClick={() => { tree.onOpen(path) }}
+              onContextMenu={(event) => { event.preventDefault(); tree.onMenu(path) }}
+            >
+              <FileTypeIcon kind={classifyFileType(entry.name)} size={16} className={css.fileIcon} />
+              <span className={css.name}>{entry.name}</span>
+            </button>
+          )}
+          items={[
+            { id: 'add', label: tree.t('menu.addToConversation') },
+            { type: 'separator', id: 'separator' },
+            { id: 'delete', label: tree.t('menu.delete'), danger: true, disabled: entry.version === undefined },
+          ]}
+          onClose={() => { tree.onMenu(null) }}
+          onSelect={(id) => {
+            tree.onMenu(null)
+            if (id === 'add') tree.onAdd(path, entry.name)
+            else if (id === 'delete') tree.onDelete(parent, path, entry)
+          }}
+        />
       </li>
     )
   }
@@ -168,7 +202,7 @@ function Level({ path, tree }: { path: string; tree: TreeContext }): ReactNode {
 
 /** The file tree's body: the workspace root and whatever the reader has opened under it. */
 export function FilesBody({
-  useTabInfo, sessionId, useSessions, useStore, actions, start, load, toggle, t,
+  useTabInfo, sessionId, useSessions, useStore, actions, start, load, toggle, addToConversation, removeFile, t,
 }: FilesBodyProps): ReactNode {
   const { tab } = useTabInfo()
   const { signal, actions: tabActions } = tab
@@ -178,6 +212,10 @@ export function FilesBody({
   const pathTextRef = useRef<HTMLSpanElement>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
   const scrollTopRef = useRef(0)
+  const [menuPath, setMenuPath] = useState<string | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<{ parent: string; path: string; name: string; version: string } | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const [actionError, setActionError] = useState<string | null>(null)
   usePathClipped(pathRef, pathTextRef, state?.root)
   // Come back where the reader was: loaded levels outlive the body in the
   // store, so a remounted tree lays out at its full height before this runs
@@ -216,13 +254,41 @@ export function FilesBody({
     onToggle: (path) => { toggle(tab.id, path, state.levels[path] !== undefined, signal) },
     // Every row is under the tree's root, so its address is session-relative.
     onOpen: (path) => { tabActions.openResource(fileAddressFor(sessionId, state.root, path)) },
+    menuPath,
+    onMenu: setMenuPath,
+    onAdd: (path, name) => {
+      setActionError(addToConversation(state.root, path, name) ? null : t('add.unavailable'))
+    },
+    onDelete: (parent, path, entry) => {
+      if (entry.version === undefined) return
+      setActionError(null)
+      setDeleteTarget({ parent, path, name: entry.name, version: entry.version })
+    },
     t,
   }
   // Reload drops every level and asks again for the expanded ones; a collapsed
   // level is fetched again the next time it opens.
   const reload = (): void => {
+    setMenuPath(null)
+    setActionError(null)
     actions.reset(tab.id)
     for (const path of state.expanded) load(tab.id, path, signal)
+  }
+  const confirmDelete = (): void => {
+    if (deleteTarget === null || deleting) return
+    setDeleting(true)
+    void removeFile(deleteTarget.path, deleteTarget.version, signal).then((result) => {
+      if (result.ok) {
+        const parent = deleteTarget.parent
+        setDeleteTarget(null)
+        load(tab.id, parent, signal)
+      } else {
+        setActionError(result.error.code === 'workspace-file/stale'
+          ? t('delete.stale') : t('delete.failed', { message: result.error.message }))
+      }
+    }).catch((error: unknown) => {
+      setActionError(t('delete.failed', { message: error instanceof Error ? error.message : String(error) }))
+    }).finally(() => { setDeleting(false) })
   }
   const { directory, name } = pathPartsOf(state.root)
   return (
@@ -255,6 +321,24 @@ export function FilesBody({
       >
         <ul className={css.level}><Level path={state.root} tree={tree} /></ul>
       </div>
+      {actionError !== null && deleteTarget === null && <p role="alert" className={css.actionError}>{actionError}</p>}
+      {deleteTarget !== null && (
+        <Modal
+          open
+          title={t('delete.title', { name: deleteTarget.name })}
+          description={t('delete.description', { name: deleteTarget.name })}
+          closeLabel={t('delete.cancel')}
+          onClose={() => { if (!deleting) setDeleteTarget(null) }}
+          footer={(
+            <>
+              <Button variant="outline" disabled={deleting} onClick={() => { setDeleteTarget(null) }}>{t('delete.cancel')}</Button>
+              <Button variant="primary" disabled={deleting} onClick={confirmDelete}>{t('menu.delete')}</Button>
+            </>
+          )}
+        >
+          {actionError !== null && <p role="alert">{actionError}</p>}
+        </Modal>
+      )}
     </div>
   )
 }

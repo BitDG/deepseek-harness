@@ -15,6 +15,7 @@ const configPath = fileURLToPath(new URL(
   './fixtures/time-context.patch.yml',
   import.meta.url,
 ))
+const discoveryConfigPath = fileURLToPath(new URL('./fixtures/discovery.patch.yml', import.meta.url))
 const repoTsconfig = fileURLToPath(new URL('../../../../tsconfig.json', import.meta.url))
 
 async function jsonlFiles(dir: string): Promise<string[]> {
@@ -82,5 +83,37 @@ describe('time-context through the production headless profile', () => {
 
     const headers = events.filter(event => event.type === 'request/header')
     expect(JSON.stringify(headers)).not.toContain('Time sampled while preparing')
+  }, LOADER_SMOKE_TEST_TIMEOUT_MS)
+})
+
+describe('on-demand context through the production headless profile', () => {
+  it('keeps ordinary requests small while retaining discovery and clock tools', async () => {
+    let events: SessionEvent[] = []
+    const { stderr } = await runLoaderSmoke({
+      label: 'on-demand context headless smoke',
+      tempDirPrefix: 'discovery-e2e-',
+      binScript: driver,
+      libBinScript: driver,
+      configPath: discoveryConfigPath,
+      tsconfigPath: repoTsconfig,
+      inspect: async (cwd) => {
+        const logs = await jsonlFiles(join(cwd, '.sessions'))
+        expect(logs).toHaveLength(1)
+        const lines = (await readFile(logs[0] as string, 'utf8')).trimEnd().split('\n')
+        events = lines.slice(1).map(line => JSON.parse(line) as SessionEvent)
+      },
+    })
+    expect(stderr).not.toContain('UNHANDLED')
+    expect(events.filter(event => event.type === 'turn/end')).toHaveLength(2)
+    expect(events.some(event => event.type === 'user/message' && event.data.source.kind === 'plugin'
+      && event.data.source.plugin === 'time-context')).toBe(false)
+    expect(JSON.stringify(events)).not.toContain('<available_skills>')
+    const headers = events.filter(event => event.type === 'request/header')
+    expect(headers.length).toBeGreaterThan(0)
+    const names = headers[0]!.data.header.tools?.map(tool => tool.name) ?? []
+    expect(names).toContain('tool_search')
+    expect(names).toContain('tool_activate')
+    expect(names).toContain('current_time')
+    expect(names).not.toContain('pwsh')
   }, LOADER_SMOKE_TEST_TIMEOUT_MS)
 })

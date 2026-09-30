@@ -415,6 +415,15 @@ Host Remote file reads and workspace directory observations over the composed fi
 @Remote async list(workspaceFileScope: WorkspaceFileScope, path: string, signal: AbortSignal): Promise<WorkspaceDirectoryListing>
 
 /**
+ * Delete one listed regular file inside the Session workspace after its version is confirmed.
+ * @param workspaceFileScope - header-derived workspace root.
+ * @param path - workspace path of the listed file.
+ * @param expectedVersion - version returned by the directory listing.
+ * @param signal - caller cancellation.
+ */
+@Remote async deleteFile(workspaceFileScope: WorkspaceFileScope, path: string, expectedVersion: string, signal: AbortSignal): Promise<void>
+
+/**
  * Stream every `fs/observed` observation of a file inside the Session's
  * workspace. Only instrumented filesystem operations report here; the OS is
  * not watched.

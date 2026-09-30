@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Use `dsh-fs-local` to read, list, atomically write, and edit files on the host filesystem. Relative paths resolve from a configurable base directory, while absolute paths and parent traversal remain unrestricted. Paths and symlinks that reach the same file share one identity. Writes preserve file permissions, and optional version guards reject stale overwrites. Choose this package for direct host access; use `fs-sandbox` for confined mutations.
+Use `dsh-fs-local` to read, list, atomically write, edit, and remove files on the host filesystem. Relative paths resolve from a configurable base directory, while absolute paths and parent traversal remain unrestricted. Paths and symlinks that reach the same file share one identity. Writes preserve file permissions; removal requires a matching version. Choose this package for direct host access; use `fs-sandbox` for confined mutations.
 
 ## Table of Contents
 
@@ -50,7 +50,7 @@ The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-a
 
 ### What you can do
 
-Read any regular UTF-8 text file whole or as a stream, read raw bytes up to a cap you choose or in a byte window, and list one directory level in stable name order. Create or replace a file atomically, and apply a literal text edit atomically; both mutations serialize per file, so concurrent writers never interleave. The version guard is optional: omit it for unconditional create-or-overwrite, or supply it to fail when the file changed since you last observed it.
+Read any regular UTF-8 text file whole or as a stream, read raw bytes up to a cap you choose or in a byte window, and list one directory level in stable name order. Create or replace a file atomically, apply a literal text edit atomically, or remove one regular file regardless of content. All mutations serialize per file. Writes and edits take an optional version guard; removal requires a matching version and rejects a final symlink or directory.
 
 Failures are typed `FsError`s with stable codes — `FS_NOT_FOUND`, `FS_NOT_TEXT` (binary content), `FS_STALE_VERSION` (changed since observation), `FS_EDIT_NOT_FOUND` or `FS_AMBIGUOUS_EDIT` (no unique literal match), and others — so callers branch on the code, never on message text. A missing target on an edit reports `FS_STALE_VERSION` whether or not the version guard is supplied.
 

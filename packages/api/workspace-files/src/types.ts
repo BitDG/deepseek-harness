@@ -8,8 +8,8 @@
  *   filesystem's execution world, because their consumer is the Client
  *   resource system, whose `dsh-resource://file/session/<id>/<path>` address carries that
  *   same path.
- * - `list` speaks workspace paths — the same syntax its `path` argument accepts —
- *   because its consumer is a tree rooted at the workspace root.
+ * - `list` and `deleteFile` speak workspace paths because their consumer is a tree
+ *   rooted at the workspace root. `deleteFile` also requires the listed version.
  *
  * @module @deepseek-ai/dsh-api-workspace-files/types
  */
@@ -95,6 +95,8 @@ export interface WorkspaceDirectoryEntry {
   readonly type: 'file' | 'directory' | 'other'
   /** Byte size, present only for a regular file whose backend reports it. */
   readonly size?: number
+  /** Freshness token used to reject deletion if this file changes after listing. */
+  readonly version?: string
 }
 
 /** Direct children of one workspace directory. */
@@ -162,5 +164,11 @@ declare module '@deepseek-ai/dsh-typert-protocol' {
       readonly path: string
       readonly kind: 'file' | 'symlink' | 'other'
     }
+    /** The listed file changed before removal. */
+    'workspace-file/stale': { readonly path: string }
+    /** The filesystem policy or operating system denied removal. */
+    'workspace-file/delete-denied': { readonly path: string }
+    /** The filesystem backend could not remove this file. */
+    'workspace-file/delete-failed': { readonly path: string }
   }
 }

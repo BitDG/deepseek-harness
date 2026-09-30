@@ -64,6 +64,31 @@ describe('UI renderer plugin', () => {
     expect(el.querySelector('[data-testid="root-probe"]')).toBeTruthy()
   })
 
+  it('contains a missing root during replacement and recovers when the layout registers again', async () => {
+    const { ctx, slots } = await bench()
+    slots.installLocale({
+      getSnapshot: () => ({ revision: 0 }),
+      subscribe: () => () => {},
+      bind: () => key => key === 'loading' ? 'Loading…' : key,
+    })
+    const disposeRoot = slots.register({ name: 'root' }, () => <div data-testid="original-root" />)
+    const el = container()
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    act(() => { mounted.push(ctx.get('uiRenderer')!.mount(el)) })
+    expect(el.querySelector('[data-testid="original-root"]')).toBeTruthy()
+
+    await stabilize(() => { disposeRoot() })
+    expect(el.querySelector('[role="status"]')?.textContent).toBe('Loading…')
+    expect(el.querySelector('[data-slot-reloading="root"]')).toBeTruthy()
+    expect(warning).toHaveBeenCalledOnce()
+
+    await stabilize(() => {
+      slots.register({ name: 'root' }, () => <div data-testid="replacement-root" />)
+    })
+    expect(el.querySelector('[data-testid="replacement-root"]')).toBeTruthy()
+    expect(el.querySelector('[role="status"]')).toBeNull()
+  })
+
   it('hydrates the boot page before switching to the assembled application', async () => {
     const { ctx, slots } = await bench()
     slots.register({ name: 'root' }, () => <div data-testid="root-probe" />)

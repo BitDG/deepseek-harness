@@ -41,6 +41,7 @@ export default defineConfig({
   // through the tsconfig.base.json paths facade; the native option cannot do
   // this (the root tsconfig is a solution file with no paths).
   plugins: [tsconfigPaths({ projects: ['./tsconfig.base.json'] }), standardDecoratorPlugin()],
+  resolve: { extensions: ['.ts', '.tsx', '.mts', '.mjs', '.js', '.jsx', '.json'] },
   test: {
     execArgv: vitestExecArgv,
     setupFiles: ['./scripts/test-proxy-environment.ts', './scripts/test-invariants.ts'],

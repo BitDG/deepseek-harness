@@ -33,6 +33,18 @@ function chip(shell: SessionInputShell): void {
 }
 
 describe('reference submission', () => {
+  it('appends a selected file reference to an existing draft without submitting', () => {
+    const sink = vi.fn()
+    const shell = new SessionInputShell({ actx: {} as Context, defaultSink: sink, commandAttachments })
+    shell.setDraft('inspect')
+    expect(shell.appendReference({
+      source: 'reference', ref: '@src/a.ts', label: 'a.ts', appearance: 'file', clipboardText: '@src/a.ts',
+    })).toBe(true)
+    expect(shell.snapshot.draft).toBe('inspect @src/a.ts ')
+    expect(shell.snapshot.occurrences).toMatchObject([{ source: 'reference', ref: '@src/a.ts' }])
+    expect(sink).not.toHaveBeenCalled()
+  })
+
   it('mirrors canonical reference text so a persisted draft remains resolvable after remount', async () => {
     const mirror = vi.fn()
     const first = new SessionInputShell({

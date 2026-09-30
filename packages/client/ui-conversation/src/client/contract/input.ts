@@ -176,6 +176,8 @@ export interface InputTarget {
 export interface SessionInput extends InputTarget {
   /** Replace the whole draft (persisted-draft seed and programmatic writes). */
   setDraft(text: string): void
+  /** Append one structured reference to the unsent draft without submitting it. */
+  appendReference(ref: ReferenceInsert): boolean
   /** Append ordered browser-owned attachment ids; busy admission phases refuse. */
   addAttachments(ids: readonly DraftAttachmentId[]): boolean
   /** Remove one browser-owned attachment id; busy admission phases refuse. @returns whether the id was removed. */

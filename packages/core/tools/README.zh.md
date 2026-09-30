@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-使用 `dsh-tools` 可向模型公开类型化能力、校验调用、执行允许／拒绝／询问策略，并在普通工具失败时返回最终结果而不中止当前轮次。通过 `mode` 选择原生 Function Calling（函数调用）、[PTC mode](#ptc-mode) 或两者；单个 agent（智能体）可用 `presentAs` 覆盖默认值。工具作者使用 `defineTool` 声明类型化参数与输出、协作式超时、并行安全属性和可选 UI 展示。模型会看到每个获准工具声明的名称、描述与参数 schema；按 agent 设置的限制可缩小该可见集合。
+使用 `dsh-tools` 可向模型公开类型化能力、校验调用、执行允许／拒绝／询问策略，并在普通工具失败时返回最终结果而不中止当前轮次。通过 `mode` 选择原生 Function Calling（函数调用）、[PTC mode](#ptc-mode) 或两者；单个 agent（智能体）可用 `presentAs` 覆盖默认值。可选的发现配置让普通请求只携带少量工具 schema，agent 搜索并启用能力后再加载完整定义。工具作者使用 `defineTool` 声明参数、输出、协作式超时、并行安全属性和可选 UI 展示。
 
 ## 目录
 
@@ -73,12 +73,17 @@ ctx.tools.register(defineTool({
 |---|---|---|
 | `mode` | `native` | 可见工具向模型呈现的方式：`native`、`ptc` 或 `both` |
 | `maxParallelSubCalls` | `10` | `run_code` 程序重叠子调用的并发上限；`1` 恢复严格串行分发 |
+| `discovery` | 省略 | 初始请求只保留 `alwaysVisible` 工具以及 `tool_search`、`tool_activate`；`promptSections` 将可选提示词段与工具名称关联 |
 
 生成的[配置目录](../../../docs/config-catalog.zh.md#deepseek-aidsh-tools)是每个受支持字段的穷尽式真源。非原生模式要求已组合的 `ctx.ptcRuntime` 且其语言有已注册的 SDK 渲染器；agent preset 通过 [`dsh-agent-tool-presentation`](../agent-tool-presentation/README.zh.md) 自行选择呈现方式，单个 agent 可用 `presentAs(mode)` 遮蔽默认值。
 
 ### 按 agent 限制工具
 
 `ctx.tools.restrict(filter)` 对单个 agent 继承的全局工具应用允许或拒绝掩码；掩码取交集，作用域注册保持可见，限制在 dispose（资源释放）时解除。`ctx.tools.get(name, scope)` 按一个作用域的视角解析工具。使用 Host 本地展示转换器的消费方如需匹配实际执行的定义，会传入发起调用的 agent。`ctx.tools.schemas(scope)` 返回可见 schema（不含 `execute` 函数）。
+
+### 按需发现工具
+
+在 tools 行设置 `discovery.alwaysVisible`，保留常用的小型工具。agent 调用 `tool_search(query)` 获取最多八个匹配名称和简短描述，再用精确名称调用 `tool_activate(name)`。完整 schema 从该会话的下一次请求起出现；直接调用隐藏工具会得到未知工具错误。成功的启用记录可在恢复或分叉会话时从日志重建。现有作用域限制与执行审批仍然生效，已从注册表移除的工具不能启用。`discovery.promptSections` 可使指定提示词段在关联工具可见后才出现。
 
 ### 对调用实施策略
 

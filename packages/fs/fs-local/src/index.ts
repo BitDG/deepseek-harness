@@ -6,6 +6,7 @@
 
 import { Context } from '@deepseek-ai/cordis'
 import { constants as bufferConstants } from 'node:buffer'
+import { unlink } from 'node:fs/promises'
 import { isAbsolute, relative, resolve, sep } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import z from '@deepseek-ai/schemastery'
@@ -261,6 +262,28 @@ export class LocalFileSystem extends FileSystem {
         // line-ending restoration is a storage detail the diff ignores.
         before: original.content,
         after: edited.content,
+      }
+    })
+  }
+
+  override async removeFile(target: FsTarget, expected: FsVersion, signal?: AbortSignal): Promise<void> {
+    await this.withLock(target.targetKey, async () => {
+      if (signal?.aborted) throw new FsError('remove aborted', 'FS_ABORTED')
+      const current = await probeNoFollow(target.targetKey)
+      if (current === null || current.version !== expected) {
+        throw new FsError(`cannot remove "${target.displayPath}": file changed since it was listed`, 'FS_STALE_VERSION')
+      }
+      if (current.type !== 'file') {
+        throw new FsError(`cannot remove "${target.displayPath}": not a regular file`, 'FS_NOT_REGULAR_FILE')
+      }
+      if (signal?.aborted) throw new FsError('remove aborted', 'FS_ABORTED')
+      try {
+        await unlink(target.targetKey)
+      } catch (cause: unknown) {
+        const code = cause instanceof Error && 'code' in cause ? cause.code : undefined
+        if (code === 'ENOENT') throw new FsError(`cannot remove "${target.displayPath}": file changed since it was listed`, 'FS_STALE_VERSION', { cause })
+        if (code === 'EACCES' || code === 'EPERM') throw new FsError(`cannot remove "${target.displayPath}": permission denied`, 'FS_PERMISSION_DENIED', { cause })
+        throw new FsError(`cannot remove "${target.displayPath}": filesystem error`, 'FS_IO_ERROR', { cause })
       }
     })
   }

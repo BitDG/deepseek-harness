@@ -16,6 +16,9 @@
     - button "Archived sessions":
       - img
       - text: Archived sessions
+    - button "UI components":
+      - img
+      - text: UI components
   - button "Open configuration file"
   - button "Close":
     - img

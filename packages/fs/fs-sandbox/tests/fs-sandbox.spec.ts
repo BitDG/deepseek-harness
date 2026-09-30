@@ -73,6 +73,16 @@ describe('read-only', () => {
     expect(existsSync(path)).toBe(false)
   })
 
+  it('denies removal of an existing file', async () => {
+    const path = join(workspace, 'keep.txt')
+    await writeFile(path, 'keep')
+    const file = await target(path)
+    const info = await fs.stat(file)
+    expect(info).toBeDefined()
+    await expect(fs.removeFile(file, info!.version)).rejects.toMatchObject({ code: 'FS_SANDBOX_DENIED' })
+    expect(await readFile(path, 'utf8')).toBe('keep')
+  })
+
   it('denies edit of an existing file (the content is unchanged)', async () => {
     const path = join(workspace, 'file.txt')
     await writeFile(path, 'original')

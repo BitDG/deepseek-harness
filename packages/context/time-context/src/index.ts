@@ -9,9 +9,10 @@ import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { z as zod } from 'zod'
 import type { Agent, PreStepDecision } from '@deepseek-ai/dsh-agent'
+import { defineTool } from '@deepseek-ai/dsh-tools'
 import { createUserMessage } from '@deepseek-ai/dsh-llm'
 import type { UserMessage } from '@deepseek-ai/dsh-llm'
-import { SessionSeq } from '@deepseek-ai/dsh-session'
+import type { SessionSeq } from '@deepseek-ai/dsh-session'
 import type {} from '@deepseek-ai/dsh-session-projection'
 import {
   deriveBrowserTimeZoneContext,
@@ -51,12 +52,15 @@ export interface Config {
   timeZone?: string
   /** Minimum milliseconds between durable injections in one session. Omit or set to 0 to inject at every eligible step. */
   refreshIntervalMs?: number
+  /** `tool` exposes a current_time lookup instead of injecting every step. */
+  mode?: 'snapshot' | 'tool'
 }
 
 /** Schemastery validation for {@link Config}. */
 export const Config: z<Config> = z.object({
   timeZone: z.string(),
   refreshIntervalMs: z.number(),
+  mode: z.union(['snapshot', 'tool'] as const).default('snapshot'),
 })
 
 /** Format a non-negative elapsed millisecond count as compact whole-second units. */
@@ -81,7 +85,7 @@ function requestMessages(agent: Agent, turn: number, proposed: readonly UserMess
   const entered: UserMessage[] = []
   for (let seq = agent.session.seq - 1; seq >= 0; seq -= 1) {
     // oxlint-disable-next-line typescript/no-deprecated -- Existing Session history read; migration deferred.
-    const event = agent.session.eventAt(SessionSeq(seq))
+    const event = agent.session.eventAt(seq as SessionSeq)
     if (event?.type === 'turn/start' && event.data.turn === turn) {
       return [...entered.reverse(), ...proposed]
     }
@@ -177,6 +181,32 @@ export function apply(ctx: Context, config: Config): void {
       return state
     },
   })
+
+  if (config.mode === 'tool') {
+    ctx.inject(['tools'], (inner) => {
+      inner.tools.register(defineTool({
+        name: 'current_time',
+        description: 'Read the current date and time, including the browser time zone when the current turn provides one. Use for schedules, deadlines, and questions about now.',
+        parameters: {},
+        output: { schema: { type: 'string' }, render: (_args, value) => [{ type: 'text', text: value }] },
+        execute(_args, exec) {
+          if (exec.agent === undefined) throw new Error('current_time requires an agent Session')
+          const now = Date.now()
+          const session = exec.agent.session
+          let turn = 0
+          for (let index = session.seq - 1; index >= 0; index -= 1) {
+            // oxlint-disable-next-line typescript/no-deprecated -- Current-turn Session read; migration deferred.
+            const event = session.eventAt(index as SessionSeq)
+            if (event?.type === 'turn/start') { turn = event.data.turn; break }
+          }
+          const browser = deriveBrowserTimeZoneContext(requestMessages(exec.agent, turn, []))
+          const selectedTimeZone = browser.kind === 'resolved' ? browser.timeZone : fallbackTimeZone
+          return Promise.resolve(`${formatTimestamp(now, formatterFor(selectedTimeZone), selectedTimeZone)}\n${renderBrowserTimeZoneContext(browser)}`)
+        },
+      }))
+    })
+    return
+  }
 
   ctx.on('agent/pre-step', async (
     { agent, turn, step, signal },

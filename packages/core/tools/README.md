@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Use `dsh-tools` to expose typed capabilities to models, validate calls, enforce allow/deny/ask policy, and return finalized results without ending a turn on ordinary tool failures. Choose native Function Calling, [PTC mode](#ptc-mode), or both with `mode`; an agent can override the default through `presentAs`. Tool authors use `defineTool` to declare typed parameters and outputs, cooperative timeouts, parallel-safety, and optional UI presentation. Models see each permitted tool's declared name, description, and parameter schema; per-agent restrictions can narrow that visible set.
+Use `dsh-tools` to expose typed capabilities to models, validate calls, enforce allow/deny/ask policy, and return finalized results without ending a turn on ordinary tool failures. Choose native Function Calling, [PTC mode](#ptc-mode), or both with `mode`; an agent can override the default through `presentAs`. Optional discovery keeps most tool schemas out of ordinary requests until the agent searches for and activates a capability. Tool authors use `defineTool` to declare typed parameters and outputs, cooperative timeouts, parallel-safety, and optional UI presentation.
 
 ## Table of Contents
 
@@ -73,12 +73,17 @@ The `mode` config decides what the model sees: `native` (every visible schema), 
 |---|---|---|
 | `mode` | `native` | How visible tools are presented to the model: `native`, `ptc`, or `both` |
 | `maxParallelSubCalls` | `10` | Concurrency cap for a `run_code` program's overlapping sub-calls; `1` restores strictly serial dispatch |
+| `discovery` | omitted | Keep only `alwaysVisible` tools plus `tool_search` and `tool_activate` in an agent's initial request; `promptSections` associates optional prompt sections with tool names |
 
 The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-tools) is the exhaustive source for every accepted field. Non-native modes require a composed `ctx.ptcRuntime` whose language has a registered SDK renderer; an agent preset selects its own presentation with [`dsh-agent-tool-presentation`](../agent-tool-presentation/README.md), and one agent can shadow the default with `presentAs(mode)`.
 
 ### Restrict tools per agent
 
 `ctx.tools.restrict(filter)` applies an allow or deny mask to the global tools one agent inherits; masks intersect, scoped registrations stay visible, and the restriction lifts when disposed. `ctx.tools.get(name, scope)` resolves a tool as one scope sees it. A Host-local presenter consumer passes the calling agent when it must match the definition that executed. `ctx.tools.schemas(scope)` returns the visible schemas without the `execute` functions.
+
+### Discover tools on demand
+
+Set `discovery.alwaysVisible` in the tools row to retain small, frequently used tools. The agent calls `tool_search(query)` to receive at most eight matching names and short descriptions, then calls `tool_activate(name)` with an exact name. The complete schema enters the next request in that Session; a direct call while hidden fails as an unknown tool. Successful activations are reconstructed from the Session log after resume or fork. Existing scoped restrictions and execution approval still apply, and a tool removed from the registry cannot be activated. `discovery.promptSections` may delay a named prompt section until one of its associated tools is visible.
 
 ### Enforce policy on calls
 

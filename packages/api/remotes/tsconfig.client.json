@@ -81,6 +81,9 @@
       "path": "../workspace-controller/tsconfig.client.json"
     },
     {
+      "path": "../teable-tasks"
+    },
+    {
       "path": "../../typert/protocol"
     },
     {

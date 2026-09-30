@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Agents can discover and load skills during a session. Before the first request, when model-invocable skills exist and the `skill` tool is visible, they receive a durable catalog of available skill names and capped descriptions, and can use the `skill` tool to load full instructions. Users can invoke a user-invocable skill with `/name`, which injects the same instructions into that step. Catalog changes append a complete replacement, including an empty catalog that retires old names; configure `catalogDescriptionMaxLength` to limit each description.
+Agents can discover and load skills during a session. The default mode publishes a durable catalog of names and capped descriptions. `catalogMode: search` publishes brief guidance and lets the model call `skill_search` for matching summaries only when needed. Both modes use `skill` for full instructions, and users can invoke a user-invocable skill with `/name`.
 
 ## Table of Contents
 
@@ -44,12 +44,14 @@ Load the plugin together with the skill registry and at least one provider. The 
 | Field | Default | Meaning |
 |---|---|---|
 | `catalogDescriptionMaxLength` | `500` | Maximum normalized description length rendered in the session catalog; minimum 3 |
+| `catalogMode` | `eager` | `search` replaces the full catalog with brief guidance and the `skill_search` tool |
 
 The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-tool-skill) is the exhaustive source for every accepted field.
 
 ### What the model gets
 
 - **A session catalog.** When model-invocable skills exist and the `skill` tool is visible, the agent receives a durable user-role message before its first request, listing each skill's name and a capped description; the message tells the model to load a skill with the tool before acting on it, and never to infer instructions from the summary alone.
+- **On-demand discovery.** With `catalogMode: search`, the first request contains no skill summaries. `skill_search(query)` returns at most eight current model-invocable names and capped descriptions. A resumed session replaces any earlier full catalog with brief search guidance.
 - **A loader tool.** The model calls `skill` with the exact skill name and receives the full instruction body plus resource guidance in a canonical `<skill_content>` block; the result is retained as ordinary tool history.
 - **Explicit user invocation.** A `/name` token in direct user input that names a user-invocable skill injects that skill's instructions into the step, without the model having to load it.
 - **Live catalog updates.** Later membership, description, or visibility changes append a complete replacement catalog; removing every skill appends an empty catalog that retires older names.
@@ -129,7 +131,7 @@ A user may also invoke a skill directly; its <skill_content> block then appears 
 
 #### Token effect
 
-Repeated input cost scales with skill count and `catalogDescriptionMaxLength`; no initial catalog tokens are sent when the list is empty or the tool is hidden or shadowed. Each actual catalog change adds one retained complete replacement message.
+In `eager` mode, repeated input cost scales with skill count and `catalogDescriptionMaxLength`; no initial catalog tokens are sent when the list is empty or the tool is hidden or shadowed. Each actual catalog change adds one retained complete replacement message. In `search` mode, the initial guidance is fixed size. Skill summaries enter history only when `skill_search` returns matches, and full instructions enter only through `skill` or `/name`.
 
 #### KV Cache effect
 

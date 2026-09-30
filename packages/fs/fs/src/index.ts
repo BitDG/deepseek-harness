@@ -9,6 +9,7 @@
  */
 
 import { Context, Service } from '@deepseek-ai/cordis'
+import { FsError } from './types.ts'
 import type { SandboxExecutionPolicy, SandboxMode } from '@deepseek-ai/dsh-sandbox'
 import type {
   FsDirEntry,
@@ -275,6 +276,26 @@ export abstract class FileSystem extends Service {
     signal?: AbortSignal,
     sandboxPolicy?: SandboxExecutionPolicy,
   ): Promise<FsEditOutcome>
+
+  /**
+   * Remove one regular file only when its current version matches the listing.
+   * Backends without deletion support reject the operation.
+   * @param target - file to remove.
+   * @param expected - version observed before the user confirmed deletion.
+   * @param signal - aborts before removal takes effect.
+   * @param sandboxPolicy - per-call mutation policy.
+   */
+  async removeFile(
+    target: FsTarget,
+    expected: FsVersion,
+    signal?: AbortSignal,
+    sandboxPolicy?: SandboxExecutionPolicy,
+  ): Promise<void> {
+    void expected
+    void signal
+    void sandboxPolicy
+    throw new FsError(`cannot remove "${target.displayPath}": backend does not support removal`, 'FS_IO_ERROR')
+  }
 }
 
 export default FileSystem

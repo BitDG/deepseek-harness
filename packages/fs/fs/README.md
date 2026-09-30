@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Use `dsh-fs` when an application needs consistent filesystem operations across host, confined, or remote execution environments. It lets consumers resolve stable file identities, map shared host files where supported, perform bounded text and byte reads, list directories, and apply atomic text writes and literal edits. Version guards are optional, so a backend works without policy enforcement; callers can supply a guard to reject a mutation after the file changes. Choose `fs-local` or `fs-sandbox` for host execution. Model-facing filesystem tools are provided separately by `dsh-tool-fs`.
+Use `dsh-fs` when an application needs consistent filesystem operations across host, confined, or remote execution environments. It lets consumers resolve stable file identities, perform bounded reads, list directories, apply atomic text writes and edits, and remove one version-matched file where supported. Writes and edits have optional version guards; removal requires one. Choose `fs-local` or `fs-sandbox` for host execution. Model-facing filesystem tools are provided separately by `dsh-tool-fs`.
 
 ## Table of Contents
 
@@ -33,7 +33,7 @@ Pick [`fs-local`](../fs-local/README.md) for ordinary host files or [`fs-sandbox
 
 ### What the service lets you do
 
-Through `ctx.fs` you can resolve any path to a stable target identity, read a whole text file or stream it in chunks, read raw bytes up to an explicit cap, list one directory level, atomically create or replace a file, and apply a literal text edit atomically. The version guard on both mutations is optional: omit it for unconditional create-or-overwrite, or supply it to fail when the file changed since you last observed it. Every operation returns data or a typed `FsError` carrying a stable code such as `FS_NOT_FOUND`, `FS_STALE_VERSION`, or `FS_AMBIGUOUS_EDIT`, so callers branch on the code, never on message text.
+Through `ctx.fs` you can resolve any path to a stable target identity, read a whole text file or stream it in chunks, read raw bytes up to an explicit cap, list one directory level, atomically create or replace a file, apply a literal text edit atomically, and remove one version-matched regular file where the backend supports it. The version guard on writes and edits is optional; removal always requires it. Every operation returns data or a typed `FsError` carrying a stable code such as `FS_NOT_FOUND`, `FS_STALE_VERSION`, or `FS_AMBIGUOUS_EDIT`, so callers branch on the code, never on message text.
 
 -----
 
@@ -109,8 +109,8 @@ No direct invalidation; the named consumer owns any request-prefix changes.
 
 These limits define when the contract is a poor fit or needs special operational care. They are current package constraints, not a general filesystem comparison or a task backlog.
 
-- **Text-only mutations by contract** — text reads and both mutations reject binary or non-UTF-8 content with `FS_NOT_TEXT`; `readBytes` and `readByteRange` are the raw-byte primitives, and binary-safe mutations remain deferred.
-- **Thirteen primitives only** — no delete, rename, copy, or watch; `listDir` lists a single level, with recursion, globbing, pagination, and search out of scope ([directory-listing note](../../../.agents/notes/archived/architecture/2026-07-03-filesystem-directory-listing-seam.md)).
+- **Text-only content mutations** — text reads, writes, and edits reject binary or non-UTF-8 content with `FS_NOT_TEXT`; `readBytes` and `readByteRange` read raw bytes. `removeFile` accepts a regular file regardless of content.
+- **One-file removal only** — `removeFile` requires an observed version and rejects changed files. Local and sandbox backends support it; backends without removal support return `FS_IO_ERROR`. There is no recursive deletion, rename, copy, or watch; `listDir` lists a single level, with recursion, globbing, pagination, and search out of scope ([directory-listing note](../../../.agents/notes/archived/architecture/2026-07-03-filesystem-directory-listing-seam.md)).
 - **No I/O deadline** — the seam arms no timeout; cancellation is a best-effort optional `AbortSignal` per primitive ([fs family stance](../README.md)).
 - **Resolve-then-operate costs a remote backend two round-trips per tool call** — folding or caching resolution is left to such a backend.
 

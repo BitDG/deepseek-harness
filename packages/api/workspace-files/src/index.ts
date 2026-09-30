@@ -1,14 +1,15 @@
 /**
- * Workspace file service: read-only file previews, workspace directory
- * listings, and the filesystem-observation change feed, exposed as
- * `workspaceFiles`.
+ * Workspace file service: file previews, workspace directory listings,
+ * version-guarded file removal, and the filesystem-observation change feed,
+ * exposed as `workspaceFiles`.
  *
  * File reads follow the composed filesystem's read access, including paths
  * outside the workspace. The selected Session header supplies the base for
  * relative paths, with the sandbox policy root as its no-cwd fallback, not a
  * read-containment restriction. Directory listings and change observations
- * remain workspace-scoped. File-kind checks and configured read caps apply to
- * every preview; this service exposes no mutations.
+ * remain workspace-scoped. Removal accepts only a listed regular file inside
+ * that root with a matching version. File-kind checks and configured read caps
+ * apply to every preview.
  *
  * A page is cut from `streamText`, which decodes and rejects non-UTF-8 as it
  * goes, so the file is read only up to the first character past the page and
@@ -22,8 +23,7 @@
 import { posix, win32 } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
-import type {} from '@deepseek-ai/dsh-fs'
-import type { FsDirEntry, FsInfo, FsPathInfo, FsTarget } from '@deepseek-ai/dsh-fs'
+import type { FsDirEntry, FsInfo, FsPathInfo, FsTarget, FsVersion } from '@deepseek-ai/dsh-fs'
 import type {} from '@deepseek-ai/dsh-sandbox-policy'
 import type {} from '@deepseek-ai/dsh-session'
 import type {} from '@deepseek-ai/dsh-session-persistence'
@@ -175,6 +175,7 @@ function directoryEntry(child: FsDirEntry): WorkspaceDirectoryEntry {
     name: child.name,
     type: child.type,
     ...child.size === undefined ? {} : { size: child.size },
+    ...child.version === undefined ? {} : { version: child.version },
   }
 }
 
@@ -349,6 +350,51 @@ export class WorkspaceFiles extends TypertRemoteService {
       entries: children.slice(0, this.config.maxEntries).map(directoryEntry),
       truncated: children.length > this.config.maxEntries,
     }
+  }
+
+  /**
+   * Delete one listed regular file inside the Session workspace after its version is confirmed.
+   * @param workspaceFileScope - header-derived workspace root.
+   * @param path - workspace path of the listed file.
+   * @param expectedVersion - version returned by the directory listing.
+   * @param signal - caller cancellation.
+   */
+  @Remote
+  async deleteFile(workspaceFileScope: WorkspaceFileScope, path: string, expectedVersion: string, signal: AbortSignal): Promise<void> {
+    if (expectedVersion.length === 0) throw new RemoteError('gateway/bad-request', 'expectedVersion is required', {})
+    let inspected: Awaited<ReturnType<typeof this.inspect>>
+    try {
+      inspected = await this.inspect(workspaceFileScope, path, signal)
+    } catch (error: unknown) {
+      if (error instanceof RemoteError && error.code === 'workspace-file/not-found') {
+        throw new RemoteError('workspace-file/stale', `"${path}" changed since it was listed`, { path }, { cause: error })
+      }
+      throw error
+    }
+    const { root, workspaceRoot, entry } = inspected
+    if (entry.type !== 'file') {
+      throw new RemoteError('workspace-file/not-regular-file', `"${path}" is a ${entry.type}`, { path, kind: entry.type })
+    }
+    const target = await this.confine(root, workspaceRoot, path, signal)
+    try {
+      await this.ctx.fs.removeFile(
+        target, expectedVersion as FsVersion, signal,
+        { ...this.ctx.sandboxPolicy.resolve(), workspaceRoot },
+      )
+    } catch (error: unknown) {
+      const code = error instanceof Error && 'code' in error ? error.code : undefined
+      if (typeof code === 'string' && code.startsWith('FS_')) {
+        if (code === 'FS_STALE_VERSION' || code === 'FS_NOT_FOUND') {
+          throw new RemoteError('workspace-file/stale', `"${path}" changed since it was listed`, { path }, { cause: error })
+        }
+        if (code === 'FS_SANDBOX_DENIED' || code === 'FS_PERMISSION_DENIED') {
+          throw new RemoteError('workspace-file/delete-denied', `removal of "${path}" was denied`, { path }, { cause: error })
+        }
+        throw new RemoteError('workspace-file/delete-failed', `cannot remove "${path}"`, { path }, { cause: error })
+      }
+      throw error
+    }
+    this.ctx.emit('fs/observed', target, { kind: 'absent' }, undefined)
   }
 
   /**

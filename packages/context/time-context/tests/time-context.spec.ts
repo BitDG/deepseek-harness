@@ -6,6 +6,8 @@ import type { GenerateOptions, StreamChunk } from '@deepseek-ai/dsh-llm'
 import { Session, SessionId, type SessionEvent } from '@deepseek-ai/dsh-session'
 import AgentRegistry, { agentEvents, type Agent } from '@deepseek-ai/dsh-agent'
 import { defineContentToolFixture } from '@deepseek-ai/dsh-tools'
+import ToolRuntime from '@deepseek-ai/dsh-tools'
+import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import AgentLoop from '@deepseek-ai/dsh-agent-loop'
 import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
 import { unsupportedInbox, mountAgentLoopTestDependencies } from '@deepseek-ai/dsh-agent-loop-testkit'
@@ -438,6 +440,29 @@ describe('time-context projection fold edges', () => {
     expect(ctx.sessionProjections.stateOf(session, 'timeContext')).toMatchObject({
       lastTurnInjectionTime: null,
     })
+  })
+})
+
+describe('on-demand clock', () => {
+  it('answers a current-time call without adding a per-step context message', async () => {
+    const ctx = new Context()
+    await ctx.plugin(SystemPrompt)
+    await ctx.plugin(ToolRuntime)
+    await ctx.plugin(SessionProjectionRegistry)
+    await ctx.plugin(AgentRegistry)
+    await ctx.plugin(timeContext, { mode: 'tool', timeZone: 'Asia/Shanghai' })
+    const session = Session.create(SessionId('time-tool'))
+    const agent = sessionAgent(session)
+    openMessageTurn(session, 1, 'Asia/Shanghai')
+    await fire(ctx, agent, 1, 1)
+    expect(contextTexts(session)).toEqual([])
+    expect(ctx.tools.schemas(agent).map(tool => tool.name)).toContain('current_time')
+    const result = await ctx.tools.execute({
+      signal: SIGNAL, callId: ToolCallId('time-call'), name: 'current_time', arguments: {}, agent,
+    })
+    expect(result.isError).toBe(false)
+    expect(JSON.stringify(result.content)).toContain('Asia/Shanghai')
+    expect(JSON.stringify(result.content)).toContain('2026-07-14')
   })
 })
 

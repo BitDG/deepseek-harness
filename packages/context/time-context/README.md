@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-time-context` gives the model a clock: on eligible steps it appends a durable, source-attributed reading with the current time, the browser zone attached to the open request, and the elapsed time since the preceding model-visible message. It helps the model interpret otherwise-unqualified dates and times in the user's browser zone, and tells it to ask when current-turn browser zones are mixed or missing. The plugin is opt-in: default compositions leave it disabled, and the Schedule Web overlay mounts it. A positive `refreshIntervalMs` reduces how often readings accumulate; omission or `0` injects at every eligible step.
+`dsh-time-context` gives the model a clock. Snapshot mode appends a durable reading on eligible steps with the current time, browser zone, and elapsed time. Tool mode exposes `current_time` for requests that need a fresh reading and adds no automatic context message. Both modes use the current turn's browser zone when it is unambiguous.
 
 ## Table of Contents
 
@@ -45,6 +45,7 @@ The minimal mount needs no configuration. A positive `refreshIntervalMs` suppres
 |---|---|---|
 | `timeZone` | process zone | Fallback display zone when the open turn has no unique browser zone |
 | `refreshIntervalMs` | `0` (every eligible step) | Minimum milliseconds between durable injections in one session |
+| `mode` | `snapshot` | `tool` registers `current_time` instead of injecting a reading on each step |
 
 The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-time-context) is the exhaustive source for every accepted field and its JSDoc.
 
@@ -121,7 +122,7 @@ Elapsed since the preceding step context: <duration-or-unavailable>.
 
 #### Token effect
 
-Each reading accumulates until compaction shadows it. A positive interval reduces additions; omission or `0` adds one at every eligible preparation attempt.
+In `snapshot` mode, each reading accumulates until compaction shadows it. A positive interval reduces additions; omission or `0` adds one at every eligible preparation attempt. In `tool` mode, preparation adds no reading. The `current_time` schema remains visible, and a call records its fresh result as ordinary tool history.
 
 #### KV Cache effect
 

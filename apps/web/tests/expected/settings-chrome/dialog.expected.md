@@ -16,6 +16,9 @@
     - button "已归档会话":
       - img
       - text: 已归档会话
+    - button "界面组件":
+      - img
+      - text: 界面组件
   - button "打开配置文件"
   - button "关闭":
     - img

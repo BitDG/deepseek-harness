@@ -10,6 +10,8 @@ Acknowledge [declared persistence-type changes](docs/cookbook/reviewing-persiste
 
 **Application launch.** Only `dsh` profiles launch supported Node apps; package bins, demos, and public SDK argv escapes are forbidden ([rule](docs/architecture.md#application-launch)).
 
+Source Web launches must share the tools scheduler module: duplicate `TOOL_RUNTIME_SCHEDULER` symbols fail at `prepare`. Align service and consumer imports without changing tool configuration, then verify a real Skill call; HTTP readiness is insufficient.
+
 ## Repository layout
 
 ```
@@ -107,7 +109,11 @@ pnpm run demo:ptc -- "task"  # headless PTC mode run (needs key)
 
 If a required `gh`, `pnpm`, build, test, or generator command fails because the sandbox blocks credentials, network, IPC, watching, or nested `sandbox-exec`, retry unchanged with the narrowest host escalation. Require sandbox evidence; never bypass test failures or the product sandbox.
 
+If Web reports `session/writer-held`, check other live DSH instances using the same session root: an idle instance can retain the Windows named-semaphore write lock. Stop only the confirmed idle holder, then verify that the affected session lock is acquirable and the intended Web listener remains up; deleting `session.lock` does not release the Windows lock.
+
 ### Run relevant checks locally
+
+If linking one new Client workspace is blocked by downloads of unrelated platform binaries and its browser dependencies are already cached, use `pnpm --filter <package> install --offline --ignore-scripts`; verify the resulting links with that package's TypeScript build before bundling.
 
 Before pushing, follow [dsh-pre-push-checks](.agents/skills/dsh-pre-push-checks/SKILL.md); report only commands run. After `gh stack sync`, validate immediately; do not merge before checks pass.
 
@@ -129,6 +135,7 @@ Real-API tests/demos read `DEEPSEEK_API_KEY`, optional `DEEPSEEK_BASE_URL`, and 
 - **Registrations are effects**: every contribution goes through `ctx.effect()` / `ctx.on()`; a registry's `register()` returns the disposer.
 - **Runtime invariants assert owned relationships.** Publish `./invariant` only when independent observations can diverge. Otherwise omit its source and wiring and record why in its README; empty installers and checks of service presence, plugin metadata, effects, or fixed examples are invalid ([package invariant rules](packages/AGENTS.md)).
 - **Typed events use declaration merging** and merge-extensible maps. Event JSDoc needs `@mode` and payload `@param`; scoped keys absent from payloads need `@dshScopeScan unsupported`. Public service methods document parameters and non-void returns. `SessionEventMap` members are required-on-read by default — builds that do not know a type refuse the log unless the event carries the envelope's `ignorable: true`; only structural format changes bump `SESSION_FORMAT_VERSION` ([mechanism](.agents/notes/implemented/architecture/2026-08-10-session-log-version-mechanism.md)).
+- **Remote method names share the Cordis service namespace.** A method named `remove` makes Client `$mount` fail with a service-method conflict; use a distinct name such as `deleteFile` and verify Web boot after generating its Remote artifacts.
 - **Switch on discriminant tags.** Closed unions end in `assertNever`; merge-extensible unions fall through a documented default.
 - **Waterfall listeners MUST call `next()`** to delegate; returning without it short-circuits the chain ([semantics](docs/cordis-primer.md#cordis-waterfall-semantics)).
 - **Model-visible ⟺ logged**: anything that reaches a model request must be reconstructable from the session log; a new model-visible input requires a session event.

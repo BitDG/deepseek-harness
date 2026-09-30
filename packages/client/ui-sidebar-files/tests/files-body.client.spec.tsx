@@ -10,7 +10,7 @@
  * only. The two pure helpers the rows are built from are checked on their own.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { act, cleanup, fireEvent } from '@testing-library/react'
+import { act, cleanup, fireEvent, screen } from '@testing-library/react'
 import { makeTranslate, RemoteError } from '@deepseek-ai/dsh-client-test-runtime'
 import type { RemoteFailure } from '@deepseek-ai/dsh-api-remotes/client'
 import { fileAddressFor } from '@deepseek-ai/dsh-util-workspace-path'
@@ -21,7 +21,7 @@ import { mountBody, ROOT, SESSION, TAB } from './mount.client.tsx'
 
 const ROOT_LEVEL: DirLevel = {
   entries: [
-    { name: 'README.md', type: 'file', size: 12 },
+    { name: 'README.md', type: 'file', size: 12, version: 'listed-v1' },
     { name: 'src', type: 'directory' },
     { name: '.env', type: 'file', size: 2 },
     { name: 'pipe', type: 'other' },
@@ -135,13 +135,40 @@ describe('FilesBody', () => {
   it('a file click opens its session-scoped file: address through the owner; an other entry offers no button', async () => {
     const { view, script, tabActions } = mountBody()
     await act(() => script.settle({ ok: true, value: ROOT_LEVEL }))
-    fireEvent.click(view.container.querySelector(`[data-files-path="${ROOT}/README.md"] > button`)!)
+    fireEvent.click(view.container.querySelector(`[data-files-path="${ROOT}/README.md"] button`)!)
     // Every row sits under the tree's root, so the address is the path relative to it.
     expect(tabActions.openResource).toHaveBeenCalledWith(fileAddressFor(SESSION, ROOT, `${ROOT}/README.md`))
     expect(tabActions.openResource).toHaveBeenCalledWith('dsh-resource://file/session/s-test/README.md')
     const other = view.container.querySelector(`[data-files-path="${ROOT}/pipe"]`)!
     expect(other.querySelector('button')).toBeNull()
     expect(other.querySelector('[aria-disabled="true"]')?.getAttribute('title')).toBe(zh['entry.other'])
+  })
+
+  it('offers Add to conversation on right-click without sending the draft', async () => {
+    const { view, script, addToConversation, removeFile } = mountBody()
+    await act(() => script.settle({ ok: true, value: ROOT_LEVEL }))
+    const row = view.container.querySelector(`[data-files-path="${ROOT}/README.md"] button`)!
+    fireEvent.contextMenu(row)
+    expect(screen.getByRole('menuitem', { name: zh['menu.addToConversation'] })).toBeTruthy()
+    fireEvent.click(screen.getByRole('menuitem', { name: zh['menu.addToConversation'] }))
+    expect(addToConversation).toHaveBeenCalledWith(ROOT, `${ROOT}/README.md`, 'README.md')
+    expect(removeFile).not.toHaveBeenCalled()
+  })
+
+  it('confirms file deletion, leaves cancellation alone, and reloads the parent after removal', async () => {
+    const { view, script, removeFile } = mountBody()
+    await act(() => script.settle({ ok: true, value: ROOT_LEVEL }))
+    const row = view.container.querySelector(`[data-files-path="${ROOT}/README.md"] button`)!
+    fireEvent.contextMenu(row)
+    fireEvent.click(screen.getByRole('menuitem', { name: zh['menu.delete'] }))
+    expect(screen.getByRole('dialog', { name: '删除 README.md？' })).toBeTruthy()
+    fireEvent.click(screen.getAllByRole('button', { name: zh['delete.cancel'] }).at(-1)!)
+    expect(removeFile).not.toHaveBeenCalled()
+    fireEvent.contextMenu(row)
+    fireEvent.click(screen.getByRole('menuitem', { name: zh['menu.delete'] }))
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: zh['menu.delete'] })) })
+    expect(removeFile).toHaveBeenCalledWith(`${ROOT}/README.md`, 'listed-v1', expect.any(AbortSignal))
+    expect(script.list).toHaveBeenLastCalledWith(SESSION, ROOT, expect.any(AbortSignal))
   })
 
   it('marks a cut listing and an empty one', async () => {
