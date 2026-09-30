@@ -1,0 +1,145 @@
+- main:
+  - button "恢复默认布局"
+  - region "最近的会话":
+    - heading "最近的会话" [level=2]
+    - paragraph: 继续手头的工作
+    - text: "0"
+    - paragraph: 还没有可继续的会话。
+    - button "移动模块：拖动到另一模块，或按方向键调整顺序": ⠿
+    - button "缩放模块：拖动右下角，或按方向键调整尺寸": ◢
+  - region "Hacker News":
+    - heading "Hacker News" [level=2]
+    - paragraph: 热门技术讨论
+    - button "刷新"
+    - list:
+      - listitem:
+        - link "Readable technology story":
+          - /url: https://news.ycombinator.com/item?id=31
+        - text: 42 分
+        - link "6 条评论":
+          - /url: https://news.ycombinator.com/item?id=31
+    - paragraph: 1 篇文章读取失败，已保留其他文章。
+    - paragraph: 更新于 2026/9/30 {{clock}}
+    - button "移动模块：拖动到另一模块，或按方向键调整顺序": ⠿
+    - button "缩放模块：拖动右下角，或按方向键调整尺寸": ◢
+  - region "Tibo 重置观察":
+    - heading "Tibo 重置观察" [level=2]
+    - paragraph: 第三方社区预测 · 非 OpenAI 官方承诺
+    - button "刷新"
+    - text: 暂无可用概率 重置概率
+    - paragraph: 上游未提供概率数值，观察说明已正常读取。
+    - paragraph: No published probability.
+    - link "查看来源":
+      - /url: https://codex-resets.com
+    - text: 获取于 2026/9/30 {{clock}}
+    - button "移动模块：拖动到另一模块，或按方向键调整顺序": ⠿
+    - button "缩放模块：拖动右下角，或按方向键调整尺寸": ◢
+  - region "GitHub 项目热榜":
+    - heading "GitHub 项目热榜" [level=2]
+    - paragraph: 近期新建项目 · 按当前 Star 数排序
+    - button "刷新"
+    - list:
+      - listitem:
+        - link "example/project":
+          - /url: https://github.com/example/project
+        - paragraph: A recent project
+        - text: TypeScript ★ 123 Stars
+    - paragraph: 更新于 2026/9/30 {{clock}}
+    - link "打开 GitHub Search":
+      - /url: https://github.com/search?type=repositories
+    - link "Glance 社区组件":
+      - /url: https://github.com/glanceapp/community-widgets/blob/main/GALLERY.md
+    - button "移动模块：拖动到另一模块，或按方向键调整顺序": ⠿
+    - button "缩放模块：拖动右下角，或按方向键调整尺寸": ◢
+  - region "日历":
+    - heading "日历" [level=2]
+    - paragraph: 农历 · 节气 · 中国节假日与调休
+    - button "今天"
+    - button "上个月": ‹
+    - strong: 2026 年 9 月
+    - button "下个月": ›
+    - group "选择日期查看农历与宜忌":
+      - text: 一 二 三 四 五 六 日
+      - button "2026-08-31，二〇二六年七月十九，工作日": 31 十九
+      - button "2026-09-01，二〇二六年七月二十，工作日": 1 二十
+      - button "2026-09-02，二〇二六年七月廿一，工作日": 2 廿一
+      - button "2026-09-03，二〇二六年七月廿二，工作日": 3 廿二
+      - button "2026-09-04，二〇二六年七月廿三，工作日": 4 廿三
+      - button "2026-09-05，二〇二六年七月廿四，周末": 5 廿四
+      - button "2026-09-06，二〇二六年七月廿五，周末": 6 廿五
+      - button "2026-09-07，二〇二六年七月廿六，工作日": 7 白露
+      - button "2026-09-08，二〇二六年七月廿七，工作日": 8 廿七
+      - button "2026-09-09，二〇二六年七月廿八，工作日": 9 廿八
+      - button "2026-09-10，二〇二六年七月廿九，工作日": 10 教师节
+      - button "2026-09-11，二〇二六年八月初一，工作日": 11 八月
+      - button "2026-09-12，二〇二六年八月初二，周末": 12 初二
+      - button "2026-09-13，二〇二六年八月初三，周末": 13 初三
+      - button "2026-09-14，二〇二六年八月初四，工作日": 14 初四
+      - button "2026-09-15，二〇二六年八月初五，工作日": 15 初五
+      - button "2026-09-16，二〇二六年八月初六，工作日": 16 初六
+      - button "2026-09-17，二〇二六年八月初七，工作日": 17 初七
+      - button "2026-09-18，二〇二六年八月初八，工作日": 18 初八
+      - button "2026-09-19，二〇二六年八月初九，周末": 19 全民国防教育日
+      - button "2026-09-20，二〇二六年八月初十，调休上班": 20 初十 班
+      - button "2026-09-21，二〇二六年八月十一，工作日": 21 十一
+      - button "2026-09-22，二〇二六年八月十二，工作日": 22 十二
+      - button "2026-09-23，二〇二六年八月十三，工作日": 23 秋分
+      - button "2026-09-24，二〇二六年八月十四，工作日": 24 十四
+      - button "2026-09-25，二〇二六年八月十五，放假" [pressed]: 25 中秋节 休
+      - button "2026-09-26，二〇二六年八月十六，放假": 26 十六 休
+      - button "2026-09-27，二〇二六年八月十七，放假": 27 十七 休
+      - button "2026-09-28，二〇二六年八月十八，工作日": 28 十八
+      - button "2026-09-29，二〇二六年八月十九，工作日": 29 十九
+      - button "2026-09-30，二〇二六年八月二十，工作日": 30 二十
+      - button "2026-10-01，二〇二六年八月廿一，放假": 1 国庆节 休
+      - button "2026-10-02，二〇二六年八月廿二，放假": 2 廿二 休
+      - button "2026-10-03，二〇二六年八月廿三，放假": 3 廿三 休
+      - button "2026-10-04，二〇二六年八月廿四，放假": 4 廿四 休
+    - text: 休 · 放假 班 · 调休上班
+    - link "2026 年官方放假安排":
+      - /url: https://www.gov.cn/zhengce/zhengceku/202511/content_7047091.htm
+    - strong: 2026-09-25
+    - paragraph: 二〇二六年八月十五
+    - text: 放假
+    - paragraph: 中秋节 · 中秋节
+    - text: 干支：丙午 / 丁酉 / 壬寅 生肖：马 值神：青龙 · 吉
+    - term: 宜
+    - definition: 开光、解除、拆卸、修造、动土、竖柱、安门、牧养、安葬、修坟、破土、移柩
+    - term: 忌
+    - definition: 出火、入宅、移徙、祈福、祭祀、安床、开市、嫁娶、探病
+    - paragraph:
+      - text: 宜忌与吉凶为传统黄历内容，仅供民俗参考。
+      - link "历法来源":
+        - /url: https://github.com/6tail/lunar-typescript
+    - button "移动模块：拖动到另一模块，或按方向键调整顺序": ⠿
+    - button "缩放模块：拖动右下角，或按方向键调整尺寸": ◢
+  - region "倒计时":
+    - heading "倒计时" [level=2]
+    - paragraph: 日期只保存在当前浏览器
+    - text: 还有 93 天 目标日期
+    - textbox "目标日期": 2027-01-01
+    - button "移动模块：拖动到另一模块，或按方向键调整顺序": ⠿
+    - button "缩放模块：拖动右下角，或按方向键调整尺寸": ◢
+  - region "时间进度":
+    - heading "时间进度" [level=2]
+    - paragraph: 按本地时间计算
+    - text: 今天
+    - strong: 41.7%
+    - progressbar "今天"
+    - text: 本月
+    - strong: 98.1%
+    - progressbar "本月"
+    - text: 今年
+    - strong: 74.6%
+    - progressbar "今年"
+    - button "移动模块：拖动到另一模块，或按方向键调整顺序": ⠿
+    - button "缩放模块：拖动右下角，或按方向键调整尺寸": ◢
+  - region "设备状态":
+    - heading "设备状态" [level=2]
+    - paragraph: Beszel · 设备资源与温度
+    - button "刷新"
+    - alert: 尚未连接 Beszel。请配置 Hub 地址和访问凭据。
+    - link "组件参考":
+      - /url: https://github.com/glanceapp/community-widgets/blob/main/widgets/beszel-server-stats/README.md
+    - button "移动模块：拖动到另一模块，或按方向键调整顺序": ⠿
+    - button "缩放模块：拖动右下角，或按方向键调整尺寸": ◢

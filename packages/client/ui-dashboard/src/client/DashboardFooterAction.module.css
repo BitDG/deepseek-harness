@@ -1,0 +1,19 @@
+.action {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  width: 100%;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.action:hover {
+  background: var(--dsw-alias-bg-hover, rgba(127, 127, 127, .12));
+}

@@ -1,0 +1,88 @@
+.card {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--dsw-alias-stroke-subtle, rgba(127, 127, 127, .23));
+  border-radius: 14px;
+  background: var(--dsw-alias-background-secondary, transparent);
+}
+
+.head { display: flex; justify-content: space-between; gap: 12px; padding: 20px 20px 16px; }
+.head h2 { margin: 0; font-size: 16px; font-weight: 600; letter-spacing: -.02em; }
+.head p { margin: 5px 0 0; color: var(--dsw-alias-label-secondary); font-size: 12px; }
+.body { padding: 0 20px 20px; }
+.action, .todayButton { border: 0; border-radius: 7px; padding: 4px 8px; background: transparent; color: var(--dsw-alias-state-business-primary); font: inherit; font-size: 12px; cursor: pointer; }
+.action { align-self: start; flex: none; }
+.action:hover, .todayButton:hover { background: var(--dsw-alias-background-tertiary, rgba(127, 127, 127, .08)); }
+.action:disabled { opacity: .55; cursor: default; }
+.action:focus-visible, .todayButton:focus-visible, .calendarNav button:focus-visible, .dateInput:focus-visible, .card a:focus-visible { outline: 2px solid var(--dsw-alias-state-business-primary); }
+.status { margin: 0; padding: 14px 20px 20px; color: var(--dsw-alias-label-secondary); font-size: 13px; }
+.error { margin: 0; padding: 0 20px 12px; color: var(--dsw-alias-state-danger-primary, #ad3636); font-size: 12px; }
+.metric { font-size: 25px; font-weight: 650; letter-spacing: -.035em; line-height: 1.35; }
+.caption { margin-top: 5px; color: var(--dsw-alias-label-tertiary); font-size: 12px; }
+.forecast { margin: 16px 0 0; color: var(--dsw-alias-label-secondary); font-size: 13px; line-height: 1.6; }
+.footer { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-top: 16px; color: var(--dsw-alias-label-tertiary); font-size: 11px; }
+.footer a, .cardLink a { color: var(--dsw-alias-state-business-primary); text-decoration: none; }
+.footer a:hover, .cardLink a:hover, .repoList a:hover { text-decoration: underline; }
+.repoList { list-style: none; margin: 0; padding: 0 10px 10px; overflow: visible; }
+.repoList li { padding: 11px 10px; }
+.repoList li + li { border-top: 1px solid var(--dsw-alias-stroke-subtle, rgba(127, 127, 127, .15)); }
+.repoList a { color: var(--dsw-alias-label-primary); font-size: 13px; font-weight: 600; text-decoration: none; overflow-wrap: anywhere; }
+.repoList p { margin: 4px 0; color: var(--dsw-alias-label-secondary); font-size: 12px; line-height: 1.45; }
+.repoMeta { display: flex; gap: 14px; color: var(--dsw-alias-label-tertiary); font-size: 11px; }
+.cardLink { display: flex; flex-wrap: wrap; gap: 16px; padding: 12px 20px 16px; font-size: 11px; }
+.calendarCard { display: flex; flex-direction: column; }
+.calendarBody { display: flex; flex-direction: column; flex: 1; padding: 0 24px 20px; }
+.calendarNav { display: flex; align-items: center; justify-content: space-between; margin: 0 0 12px; }
+.calendarNav strong { font-size: 21px; font-weight: 620; font-variant-numeric: tabular-nums; }
+.calendarNav button { width: 34px; height: 34px; border: 1px solid var(--dsw-alias-stroke-subtle, #ddd); border-radius: 8px; background: transparent; color: inherit; cursor: pointer; font-size: 24px; line-height: 1; }
+.calendarNav button:disabled { opacity: .3; cursor: default; }
+.calendarGrid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; text-align: center; }
+.weekday { padding: 7px 0; color: var(--dsw-alias-label-tertiary); font-size: 12px; font-weight: 600; }
+.calendarDate { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; min-width: 0; min-height: 61px; padding: 8px 3px; border: 1px solid transparent; border-radius: 10px; background: transparent; color: inherit; font: inherit; cursor: pointer; }
+.calendarDate:hover { background: var(--dsw-alias-background-tertiary, #f4f6f8); }
+.calendarDate:focus-visible { outline: 2px solid var(--dsw-alias-state-business-primary); outline-offset: 1px; }
+.calendarDate[data-rest="true"] .dateNumber { color: var(--dsw-alias-state-danger-primary, #bd4b46); }
+.calendarDate[data-outside="true"] { opacity: .38; }
+.calendarDate[data-today="true"] { border-color: var(--dsw-alias-state-business-primary); }
+.calendarDate[data-selected="true"] { background: var(--dsw-alias-state-business-primary, #006fee); color: white; }
+.calendarDate[data-selected="true"] .dateNumber, .calendarDate[data-selected="true"] .lunarLabel { color: white; }
+.dateNumber { font-size: 18px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.lunarLabel { max-width: 100%; white-space: normal; overflow-wrap: anywhere; color: var(--dsw-alias-label-tertiary); font-size: 10px; }
+.lunarLabel[data-festival="true"] { color: var(--dsw-alias-state-business-primary, #006fee); }
+.scheduleMark { position: absolute; top: 3px; right: 4px; border-radius: 3px; padding: 1px 3px; background: #b74338; color: white; font-size: 9px; line-height: 1.3; }
+.scheduleMark[data-work="true"] { background: #486d85; }
+.calendarLegend { display: flex; flex-wrap: wrap; gap: 14px; margin: 14px 0 16px; color: var(--dsw-alias-label-tertiary); font-size: 11px; }
+.calendarLegend a, .almanacNote a { color: var(--dsw-alias-state-business-primary); text-decoration: none; }
+.calendarLegend a:hover, .almanacNote a:hover { text-decoration: underline; }
+.restLegend { color: var(--dsw-alias-state-danger-primary, #bd4b46); }
+.almanac { margin-top: auto; padding: 18px 20px; border-radius: 12px; background: var(--dsw-alias-background-primary, #f7f9fc); border: 1px solid var(--dsw-alias-stroke-subtle, #e5e8ec); }
+.selectedHead { display: flex; align-items: start; justify-content: space-between; gap: 12px; }
+.selectedHead strong { font-size: 18px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.selectedHead p { margin: 5px 0 0; color: var(--dsw-alias-label-secondary); font-size: 13px; }
+.scheduleBadge { flex: none; border-radius: 6px; padding: 5px 8px; background: var(--dsw-alias-background-tertiary, #edf2f6); color: var(--dsw-alias-label-secondary); font-size: 11px; }
+.scheduleBadge[data-rest="true"] { color: var(--dsw-alias-state-danger-primary, #bd4b46); }
+.dateFacts { margin: 12px 0 10px; color: var(--dsw-alias-label-secondary); font-size: 12px; }
+.almanacFacts { display: flex; flex-wrap: wrap; gap: 6px 14px; color: var(--dsw-alias-label-tertiary); font-size: 11px; line-height: 1.7; }
+.activities { display: grid; gap: 10px; margin: 16px 0; font-size: 12px; line-height: 1.7; }
+.activities > div { display: flex; align-items: start; gap: 10px; }
+.activities dt { flex: none; min-width: 18px; padding: 1px 4px; border-radius: 4px; text-align: center; font-weight: 700; }
+.activities dd { margin: 0; color: var(--dsw-alias-label-secondary); }
+.suitable { color: #2f7b67; background: rgba(47, 123, 103, .09); }
+.avoid { color: #b74338; background: rgba(183, 67, 56, .09); }
+.almanacNote, .coverageNotice { margin: 10px 0 0; color: var(--dsw-alias-label-tertiary); font-size: 11px; line-height: 1.6; }
+.coverageNotice { color: var(--dsw-alias-state-danger-primary, #bd4b46); }
+.feedNote { margin: 0; padding: 0 20px 14px; color: var(--dsw-alias-label-tertiary); font-size: 11px; line-height: 1.6; }
+
+@container (max-width: 560px) {
+  .calendarBody { padding: 0 12px 12px; }
+  .calendarGrid { gap: 2px; }
+  .calendarDate { min-height: 52px; }
+  .almanac { padding: 14px; }
+}
+.inputLabel { display: block; margin-top: 20px; color: var(--dsw-alias-label-secondary); font-size: 12px; }
+.dateInput { display: block; box-sizing: border-box; width: 100%; margin-top: 7px; padding: 9px 11px; border: 1px solid var(--dsw-alias-stroke-subtle, rgba(127, 127, 127, .3)); border-radius: 8px; background: var(--dsw-alias-background-primary); color: var(--dsw-alias-label-primary); font: inherit; font-size: 13px; }
+.progressRow + .progressRow { margin-top: 18px; }
+.progressLabel { display: flex; justify-content: space-between; margin-bottom: 7px; font-size: 12px; }
+.progressLabel strong { font-variant-numeric: tabular-nums; }
+.track { height: 8px; border-radius: 999px; overflow: hidden; background: var(--dsw-alias-background-tertiary, rgba(127, 127, 127, .14)); }
+.track span { display: block; height: 100%; border-radius: inherit; background: var(--dsw-alias-state-business-primary); }

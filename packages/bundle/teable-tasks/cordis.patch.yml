@@ -1,0 +1,12 @@
+# Apply after the Web bundle. Values are read from the Host environment at boot.
+- insert:
+    - id: teable-tasks
+      name: '@deepseek-ai/dsh-api-teable-tasks'
+      config:
+        baseUrl: !!js process.env.DSH_TEABLE_BASE_URL
+        accessToken: !!js process.env.DSH_TEABLE_ACCESS_TOKEN
+        projectTableId: !!js process.env.DSH_TEABLE_PROJECT_TABLE_ID
+        taskTableId: !!js process.env.DSH_TEABLE_TASK_TABLE_ID
+        requestTimeoutMs: 12000
+    - id: ui-teable-tasks
+      name: '@deepseek-ai/dsh-client-ui-teable-tasks'

@@ -1,0 +1,84 @@
+- region "设备状态":
+  - heading "设备状态" [level=2]
+  - paragraph: 设备资源与温度
+  - button "刷新"
+  - article:
+    - heading "Creator PC" [level=3]
+    - paragraph: 已运行 2.0 天
+    - text: 在线 CPU
+    - strong: 23.5%
+    - progressbar "CPU"
+    - text: 内存
+    - strong: 50.0%
+    - progressbar "内存"
+    - text: 32.0 GiB / 64.0 GiB 存储
+    - strong: 25.0%
+    - progressbar "存储"
+    - text: 256.0 GiB / 1.0 TiB CPU 温度
+    - strong: 61.0 °C
+    - text: 设备温度
+    - strong: 未提供
+    - group:
+      - text: 设备明细
+      - term: CPU 型号
+      - definition: AMD Ryzen
+      - term: 内核
+      - definition: Windows 11
+      - term: 采样时间
+      - definition: 2026-09-30 {{clock}}Z
+      - text: /
+      - strong: 25.0%
+      - progressbar /
+      - text: "256.0 GiB / 1.0 TiB F:"
+      - strong: 50.0%
+      - progressbar "F:"
+      - text: 1.0 TiB / 2.0 TiB 交换内存
+      - strong: 25.0%
+      - progressbar "交换内存"
+      - text: 2.0 GiB / 8.0 GiB
+    - heading "NVIDIA RTX 4080 SUPER" [level=4]
+    - text: GPU
+    - strong: 30.0%
+    - progressbar "GPU"
+    - text: 显存
+    - strong: 25.0%
+    - progressbar "显存"
+    - text: 4.0 GiB / 16.0 GiB GPU 温度
+    - strong: 49.0 °C
+    - text: 功耗
+    - strong: 80.0 W
+  - article:
+    - heading "Offline PC" [level=3]
+    - paragraph: 已运行 0.0 天
+    - text: 离线
+    - paragraph: 离线设备显示最后一次采样。
+    - text: CPU
+    - strong: 0.0%
+    - progressbar "CPU"
+    - text: 内存
+    - strong: 50.0%
+    - progressbar "内存"
+    - text: 32.0 GiB / 64.0 GiB 存储
+    - strong: 25.0%
+    - progressbar "存储"
+    - text: 256.0 GiB / 1.0 TiB CPU 温度
+    - strong: 61.0 °C
+    - text: 设备温度
+    - strong: 未提供
+    - group: 设备明细
+    - heading "NVIDIA RTX 4080 SUPER" [level=4]
+    - text: GPU
+    - strong: 30.0%
+    - progressbar "GPU"
+    - text: 显存
+    - strong: 25.0%
+    - progressbar "显存"
+    - text: 4.0 GiB / 16.0 GiB GPU 温度
+    - strong: 49.0 °C
+    - text: 功耗
+    - strong: 80.0 W
+  - link "组件参考":
+    - /url: https://github.com/glanceapp/community-widgets/blob/main/widgets/beszel-server-stats/README.md
+  - text: 读取于 {{clock}}
+  - button "移动模块：拖动到另一模块，或按方向键调整顺序": ⠿
+  - button "缩放模块：拖动右下角，或按方向键调整尺寸": ◢

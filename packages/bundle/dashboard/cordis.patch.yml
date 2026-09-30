@@ -1,0 +1,13 @@
+# Install over the Web or Desktop profile. Each card is a separate Loader row,
+# so profile patches and the Plugins page can remove one without removing the base.
+- insert:
+    - id: ui-dashboard
+      name: '@deepseek-ai/dsh-client-ui-dashboard'
+    - id: ui-dashboard-sessions
+      name: '@deepseek-ai/dsh-client-ui-dashboard-sessions'
+    - id: ui-dashboard-hacker-news
+      name: '@deepseek-ai/dsh-client-ui-dashboard-hacker-news'
+    - id: ui-dashboard-community
+      name: '@deepseek-ai/dsh-client-ui-dashboard-community'
+    - id: ui-dashboard-devices
+      name: '@deepseek-ai/dsh-client-ui-dashboard-devices'

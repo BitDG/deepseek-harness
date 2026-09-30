@@ -1,0 +1,40 @@
+# Test-only overlay over the shipped headless profile.
+- id: headless-startup
+  disabled: true
+
+- id: headless-runner
+  disabled: true
+
+- id: agent-loop
+  config:
+    agents:
+      - id: main
+        provider: time-context-mock
+        model: time-context-mock
+        cwd: !!js process.cwd()
+
+- id: session-persistence-jsonl
+  config:
+    root: './.sessions'
+    compression: none
+
+- id: tools
+  config:
+    mode: native
+    discovery:
+      alwaysVisible: [skill, skill_search, current_time]
+      promptSections: []
+
+- id: tool-skill
+  config:
+    catalogMode: search
+
+- insert:
+    - id: time-context-mock-llm
+      name: './mock-llm.ts'
+
+    - id: time-context
+      name: '@deepseek-ai/dsh-time-context'
+      config:
+        timeZone: Asia/Shanghai
+        mode: tool
